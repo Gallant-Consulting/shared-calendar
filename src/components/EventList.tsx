@@ -115,7 +115,7 @@ export function EventList({
   const sortedEvents = [...events].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto mt-8 mb-8">
       {/* Header */}
       {showHeader && (
         <div className="mb-6">

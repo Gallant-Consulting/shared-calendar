@@ -244,12 +244,7 @@ export function Calendar({
       days.push(
         <div
           key={day}
-          className={`h-16 flex items-center justify-center cursor-pointer relative border-r border-b border-border 
-            ${isFirstColumn ? 'border-l' : ''}
-            ${isFirstRow ? 'border-t' : ''}
-            ${isSelected ? 'bg-white/10' : ''}
-            ${isToday ? 'text-blue-400' : ''}
-            hover:bg-white/5 transition-colors`}
+          className={`relative flex flex-col items-center justify-center h-16 w-12 cursor-pointer border border-border bg-white hover:bg-muted/40 transition-colors ${isToday ? 'ring-2 ring-green-400' : ''} ${isSelected ? 'bg-blue-100' : ''}`}
           onClick={() => handleDateClick(date)}
         >
           <span className="text-base">{day}</span>

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar } from './components/Calendar';
-import { FloatingNewEventButton } from './components/FloatingNewEventButton';
-import { EventModal } from './components/EventModal';
-import { EventDetailsModal } from './components/EventDetailsModal';
-import { Button } from './components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu';
+import { Calendar } from 'src/components/Calendar';
+import { FloatingNewEventButton } from 'src/components/FloatingNewEventButton';
+import { EventModal } from 'src/components/EventModal';
+import { EventDetailsModal } from 'src/components/EventDetailsModal';
+import { Button } from 'src/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from 'src/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from 'src/components/ui/dropdown-menu';
 import { Moon, Sun, MoreHorizontal, Info, Settings, Download, Printer, HelpCircle, ExternalLink } from 'lucide-react';
-import { getEvents, addEvent, updateEvent, deleteEvent } from './services/googleSheetApi';
-import { Event } from './components/Event';
+import { getEvents, addEvent, updateEvent, deleteEvent } from 'src/services/googleSheetApi';
+import { Event } from 'src/components/Event';
 
 export type FilterType = 'all' | 'today' | 'week' | 'month' | 'quarter';
 
@@ -253,14 +253,14 @@ export default function App() {
       )}
       {/* Error message */}
       {error && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded shadow z-50">
+        <div className="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded shadow z-50">
           {error}
         </div>
       )}
       {/* Main Title Section - Above main content */}
       <div className="py-16 text-center">
         <div className="flex items-center justify-center gap-4">
-          <h1 className="text-4xl font-medium">Central VA Startup Ecosystem</h1>
+          <h1 className="text-5xl font-bold text-center mt-12 mb-8 text-green-600">Central VA Startup Ecosystem</h1>
           <Button
             variant="ghost"
             size="icon"
@@ -273,9 +273,9 @@ export default function App() {
       </div>
       {/* Calendar Content */}
       <div className="flex justify-center px-6 pb-8">
-        <div className="w-full max-w-5xl p-10 rounded-lg border border-border bg-card/95 backdrop-blur-sm">
+        <div className="w-full max-w-5xl mx-auto p-10 rounded-2xl border border-border bg-white shadow-md mb-8">
           {/* Header within container - simplified */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
               <FloatingNewEventButton onClick={() => handleNewEvent()} />
             </div>
@@ -353,7 +353,7 @@ export default function App() {
         </div>
       </div>
       {/* Footer Section - Below main content */}
-      <div className="py-8 text-center">
+      <div className="py-8 text-center mt-12">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 max-w-5xl mx-auto px-6">
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span>&copy; {currentYear} Central VA Startup Ecosystem. All rights reserved.</span>
