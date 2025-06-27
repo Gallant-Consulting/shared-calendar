@@ -3,8 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
-import { X, MoreHorizontal, Edit, Building, MapPin } from 'lucide-react';
-import { Event } from '../App';
+import { Calendar, Clock, MapPin, Users, Link2, Building, FileText, Edit, Trash2, MoreHorizontal } from 'lucide-react';
+import type { Event } from '../types';
 
 interface EventDetailsModalProps {
   isOpen: boolean;

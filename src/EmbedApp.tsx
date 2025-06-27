@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { EventList } from './components/EventList';
 import { EventDetailsModal } from './components/EventDetailsModal';
-import { Event, FilterType, AVAILABLE_TAGS } from './App';
+import type { Event, FilterType } from './types';
+import { AVAILABLE_TAGS } from './types';
 
 // Same sample events as main app for consistency
 const generateSampleEvents = (): Event[] => [

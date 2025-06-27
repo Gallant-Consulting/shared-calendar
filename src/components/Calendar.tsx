@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Link2, FileText, ChevronUp, ChevronDown, Filter, Calendar as CalendarIcon, EyeOff, Building, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Event, FilterType } from '../App';
+import type { Event, FilterType } from '../types';
 
 interface CalendarProps {
   events: Event[];

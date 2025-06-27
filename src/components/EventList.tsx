@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Filter, Link2, FileText, Building, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Event, FilterType } from '../App';
+import type { Event, FilterType } from '../types';
 
 interface EventListProps {
   events: Event[];

@@ -1,3 +1,4 @@
+import './styles/globals.css'
 import React, { useState, useEffect } from 'react';
 import { Calendar } from './components/Calendar';
 import { FloatingNewEventButton } from './components/FloatingNewEventButton';
@@ -7,24 +8,138 @@ import { Button } from './components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu';
 import { Moon, Sun, MoreHorizontal, Info, Settings, Download, Printer, HelpCircle, ExternalLink } from 'lucide-react';
-import { getEvents, addEvent, updateEvent, deleteEvent } from './services/googleSheetApi';
-import { Event } from './components/Event';
+
+export interface Event {
+  id: string;
+  title: string;
+  startDate: Date;
+  endDate: Date;
+  isAllDay: boolean;
+  attendees: { name: string; avatar: string }[];
+  link?: string;
+  repeat?: {
+    frequency: 'none' | 'daily' | 'weekly' | 'monthly';
+    until?: Date;
+  };
+  notes?: string;
+  hostOrganization?: string;
+  location?: string;
+  tags?: string[];
+}
 
 export type FilterType = 'all' | 'today' | 'week' | 'month' | 'quarter';
 
+// Available tag options
 export const AVAILABLE_TAGS = ['ESO', 'PAID', 'NETWORKING'] as const;
 
+// Sample events for demonstration
+const generateSampleEvents = (): Event[] => [
+  {
+    id: 'sample-1',
+    title: 'Team Standup',
+    startDate: new Date(2025, 5, 26, 9, 0), // June 26, 2025 at 9:00 AM
+    endDate: new Date(2025, 5, 26, 9, 30), // June 26, 2025 at 9:30 AM
+    isAllDay: false,
+    attendees: [
+      { name: 'Sarah Johnson', avatar: '' },
+      { name: 'Mike Chen', avatar: '' },
+      { name: 'Alex Rivera', avatar: '' }
+    ],
+    link: 'https://meet.google.com/abc-defg-hij',
+    repeat: {
+      frequency: 'weekly',
+      until: new Date(2025, 8, 30)
+    },
+    notes: 'Weekly team standup to discuss progress and blockers',
+    hostOrganization: 'Tech Startup Co.',
+    location: 'Conference Room A',
+    tags: ['ESO']
+  },
+  {
+    id: 'sample-2',
+    title: 'Product Launch',
+    startDate: new Date(2025, 5, 28, 14, 0), // June 28, 2025 at 2:00 PM
+    endDate: new Date(2025, 5, 28, 16, 0), // June 28, 2025 at 4:00 PM
+    isAllDay: false,
+    attendees: [
+      { name: 'Emma Davis', avatar: '' },
+      { name: 'David Wilson', avatar: '' },
+      { name: 'Lisa Park', avatar: '' },
+      { name: 'Tom Anderson', avatar: '' }
+    ],
+    link: 'https://company.zoom.us/j/123456789',
+    notes: 'Official launch event for our new product line. Press release goes live at 2 PM.',
+    hostOrganization: 'Innovation Labs',
+    location: 'Main Auditorium',
+    tags: ['PAID']
+  },
+  {
+    id: 'sample-3',
+    title: 'Conference Day',
+    startDate: new Date(2025, 6, 2, 0, 0), // July 2, 2025 - All day
+    endDate: new Date(2025, 6, 2, 23, 59), // July 2, 2025 - All day
+    isAllDay: true,
+    attendees: [
+      { name: 'Jennifer Kim', avatar: '' },
+      { name: 'Robert Martinez', avatar: '' }
+    ],
+    link: 'https://techconf2025.com',
+    notes: 'Annual tech conference - keynote at 9 AM, workshops throughout the day',
+    hostOrganization: 'Central VA Tech Alliance',
+    location: 'Richmond Convention Center',
+    tags: ['ESO', 'PAID', 'NETWORKING']
+  },
+  {
+    id: 'sample-4',
+    title: 'Morning Coffee Chat',
+    startDate: new Date(2025, 6, 2, 8, 0), // July 2, 2025 at 8:00 AM
+    endDate: new Date(2025, 6, 2, 8, 45), // July 2, 2025 at 8:45 AM
+    isAllDay: false,
+    attendees: [
+      { name: 'Marcus Thompson', avatar: '' },
+      { name: 'Diana Chen', avatar: '' }
+    ],
+    notes: 'Casual networking over coffee before the conference begins',
+    hostOrganization: 'Startup Network RVA',
+    location: 'Hotel Lobby Café',
+    tags: ['NETWORKING']
+  },
+  {
+    id: 'sample-5',
+    title: 'Evening Networking Reception',
+    startDate: new Date(2025, 6, 2, 18, 30), // July 2, 2025 at 6:30 PM
+    endDate: new Date(2025, 6, 2, 20, 0), // July 2, 2025 at 8:00 PM
+    isAllDay: false,
+    attendees: [
+      { name: 'Carlos Rodriguez', avatar: '' },
+      { name: 'Anna Kowalski', avatar: '' },
+      { name: 'James Wright', avatar: '' },
+      { name: 'Priya Sharma', avatar: '' },
+      { name: 'Michael O\'Connor', avatar: '' }
+    ],
+    link: 'https://eventbrite.com/networking-reception',
+    notes: 'Post-conference networking with light refreshments and drinks. Great opportunity to connect with fellow attendees.',
+    hostOrganization: 'Business Innovation Hub',
+    location: 'Sky Bar Rooftop',
+    tags: ['NETWORKING', 'PAID']
+  }
+];
+
+// Error Boundary Component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error?: Error}> {
   constructor(props: {children: React.ReactNode}) {
     super(props);
     this.state = { hasError: false };
   }
+
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
+
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('EventModal Error:', error, errorInfo);
   }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -43,26 +158,24 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
         </Dialog>
       );
     }
+
     return this.props.children;
   }
 }
 
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [rowIds, setRowIds] = useState<number[]>([]); // Parallel array to events
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<Event[]>(generateSampleEvents()); // Start with sample events
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date()); // Set to current date by default
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [editingRowId, setEditingRowId] = useState<number | null>(null);
   const [viewingEvent, setViewingEvent] = useState<Event | null>(null);
   const [currentFilter, setCurrentFilter] = useState<FilterType>('week');
 
   useEffect(() => {
+    // Apply theme class to document
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -70,39 +183,36 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Debug logging
   useEffect(() => {
-    setIsLoading(true);
-    setError(null);
-    getEvents()
-      .then(({ events, rowIds }) => {
-        setEvents(events);
-        setRowIds(rowIds);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        setError('Failed to load events.');
-        setIsLoading(false);
-      });
-  }, []);
+    console.log('EventModal state changed:', { 
+      isEventModalOpen, 
+      editingEvent: editingEvent?.id, 
+      selectedDate: selectedDate?.toDateString() 
+    });
+  }, [isEventModalOpen, editingEvent, selectedDate]);
 
   const filterEvents = (events: Event[], filter: FilterType): Event[] => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
     switch (filter) {
       case 'today':
         return events.filter(event => {
           const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
           return eventDate.getTime() === today.getTime();
         });
+      
       case 'week':
         const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay());
+        weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
         const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setDate(weekStart.getDate() + 6); // End of week (Saturday)
         return events.filter(event => {
           const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
           return eventDate >= weekStart && eventDate <= weekEnd;
         });
+      
       case 'month':
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -110,6 +220,7 @@ export default function App() {
           const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
           return eventDate >= monthStart && eventDate <= monthEnd;
         });
+      
       case 'quarter':
         const quarter = Math.floor(now.getMonth() / 3);
         const quarterStart = new Date(now.getFullYear(), quarter * 3, 1);
@@ -118,6 +229,7 @@ export default function App() {
           const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
           return eventDate >= quarterStart && eventDate <= quarterEnd;
         });
+      
       case 'all':
       default:
         return events;
@@ -127,14 +239,22 @@ export default function App() {
   const filteredEvents = filterEvents(events, currentFilter);
 
   const handleDateSelect = (date: Date) => {
+    // Just update the selected date - don't open modal
     setSelectedDate(date);
   };
 
   const handleNewEvent = (date?: Date) => {
-    setSelectedDate(date || null);
-    setEditingEvent(null);
-    setEditingRowId(null);
-    setIsEventModalOpen(true);
+    console.log('handleNewEvent called with:', date);
+    console.log('About to set modal state...');
+    
+    try {
+      setSelectedDate(date || null);
+      setEditingEvent(null);
+      setIsEventModalOpen(true);
+      console.log('Modal state set successfully');
+    } catch (error) {
+      console.error('Error in handleNewEvent:', error);
+    }
   };
 
   const handleViewEvent = (event: Event) => {
@@ -145,60 +265,39 @@ export default function App() {
   const handleEditEventFromDetails = () => {
     if (viewingEvent) {
       setEditingEvent(viewingEvent);
-      const idx = events.findIndex(e => e.id === viewingEvent.id);
-      setEditingRowId(idx !== -1 ? rowIds[idx] : null);
       setIsEventDetailsOpen(false);
       setIsEventModalOpen(true);
     }
   };
 
-  const handleSaveEvent = async (eventData: Omit<Event, 'id'>) => {
-    setIsLoading(true);
-    setError(null);
+  const handleSaveEvent = (eventData: Omit<Event, 'id'>) => {
+    console.log('Saving event:', eventData);
     try {
-      if (editingEvent && editingRowId !== null) {
-        // Update existing event
-        const updatedEvent: Event = { ...eventData, id: editingEvent.id };
-        await updateEvent(editingRowId, updatedEvent);
+      if (editingEvent) {
+        setEvents(prev => prev.map(e => 
+          e.id === editingEvent.id 
+            ? { ...eventData, id: editingEvent.id }
+            : e
+        ));
       } else {
-        // Add new event
-        const newEvent: Event = { ...eventData, id: Date.now().toString() };
-        await addEvent(newEvent);
+        const newEvent: Event = {
+          ...eventData,
+          id: Date.now().toString()
+        };
+        setEvents(prev => [...prev, newEvent]);
       }
-      // Refresh events
-      const { events, rowIds } = await getEvents();
-      setEvents(events);
-      setRowIds(rowIds);
       setIsEventModalOpen(false);
       setEditingEvent(null);
-      setEditingRowId(null);
       setSelectedDate(null);
-    } catch (err) {
-      setError('Failed to save event.');
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Error saving event:', error);
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const idx = events.findIndex(e => e.id === eventId);
-      if (idx !== -1) {
-        await deleteEvent(rowIds[idx]);
-        const { events: newEvents, rowIds: newRowIds } = await getEvents();
-        setEvents(newEvents);
-        setRowIds(newRowIds);
-      }
-      setIsEventModalOpen(false);
-      setEditingEvent(null);
-      setEditingRowId(null);
-    } catch (err) {
-      setError('Failed to delete event.');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleDeleteEvent = (eventId: string) => {
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+    setIsEventModalOpen(false);
+    setEditingEvent(null);
   };
 
   const handleCloseEventDetails = () => {
@@ -207,9 +306,9 @@ export default function App() {
   };
 
   const handleCloseEventModal = () => {
+    console.log('Closing event modal');
     setIsEventModalOpen(false);
     setEditingEvent(null);
-    setEditingRowId(null);
     setSelectedDate(null);
   };
 
@@ -245,18 +344,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground geometric-bg">
-      {/* Loading indicator */}
-      {isLoading && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-          <div className="p-6 bg-white rounded shadow text-lg">Loading events...</div>
-        </div>
-      )}
-      {/* Error message */}
-      {error && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded shadow z-50">
-          {error}
-        </div>
-      )}
       {/* Main Title Section - Above main content */}
       <div className="py-16 text-center">
         <div className="flex items-center justify-center gap-4">
@@ -271,6 +358,7 @@ export default function App() {
           </Button>
         </div>
       </div>
+
       {/* Calendar Content */}
       <div className="flex justify-center px-6 pb-8">
         <div className="w-full max-w-5xl p-10 rounded-lg border border-border bg-card/95 backdrop-blur-sm">
@@ -279,6 +367,7 @@ export default function App() {
             <div className="flex items-center gap-4">
               <FloatingNewEventButton onClick={() => handleNewEvent()} />
             </div>
+            
             <div className="text-center">
               <a 
                 href="#" 
@@ -287,6 +376,7 @@ export default function App() {
                 Add this schedule to HEY Calendar, Google Calendar, Outlook, or iCal...
               </a>
             </div>
+            
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -295,6 +385,7 @@ export default function App() {
               >
                 {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -340,6 +431,7 @@ export default function App() {
               </DropdownMenu>
             </div>
           </div>
+
           {/* Calendar */}
           <Calendar 
             events={filteredEvents}
@@ -352,6 +444,7 @@ export default function App() {
           />
         </div>
       </div>
+
       {/* Footer Section - Below main content */}
       <div className="py-8 text-center">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 max-w-5xl mx-auto px-6">
@@ -371,6 +464,7 @@ export default function App() {
           </div>
         </div>
       </div>
+
       {/* Info Modal */}
       <Dialog open={isInfoModalOpen} onOpenChange={handleCloseInfoModal}>
         <DialogContent className="max-w-md bg-card border border-border">
@@ -380,11 +474,13 @@ export default function App() {
               Information about the Central VA Startup Ecosystem calendar
             </DialogDescription>
           </DialogHeader>
+          
           <div className="py-4">
             <p className="text-base leading-relaxed text-muted-foreground">
               A shared calendar for ESO practitioners.
             </p>
           </div>
+          
           <div className="flex justify-end">
             <Button 
               variant="outline" 
@@ -396,6 +492,7 @@ export default function App() {
           </div>
         </DialogContent>
       </Dialog>
+
       {/* Event Details Modal */}
       <EventDetailsModal
         isOpen={isEventDetailsOpen}
@@ -403,13 +500,14 @@ export default function App() {
         onEdit={handleEditEventFromDetails}
         event={viewingEvent}
       />
+
       {/* Event Edit/Create Modal with Error Boundary */}
       <ErrorBoundary>
         <EventModal
           isOpen={isEventModalOpen}
           onClose={handleCloseEventModal}
           onSave={handleSaveEvent}
-          onDelete={editingEvent && editingRowId !== null ? () => handleDeleteEvent(editingEvent.id) : undefined}
+          onDelete={editingEvent ? () => handleDeleteEvent(editingEvent.id) : undefined}
           initialData={editingEvent}
           selectedDate={selectedDate}
         />

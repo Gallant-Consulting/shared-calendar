@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Link2, FileText, Plus, X, Building, MapPin, Tag } from 'lucide-react';
-import { Event, AVAILABLE_TAGS } from '../App';
+import type { Event } from '../types';
+import { AVAILABLE_TAGS } from '../types';
 
 interface EventModalProps {
   isOpen: boolean;
