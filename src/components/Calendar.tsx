@@ -118,6 +118,8 @@ export function Calendar({
         return 'This Week';
       case 'month':
         return 'This Month';
+      case 'nextMonth':
+        return 'Next Month';
       case 'quarter':
         return 'This Quarter';
       case 'all':
@@ -153,6 +155,14 @@ export function Calendar({
         return allEvents.filter(event => {
           const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
           return eventDate >= monthStart && eventDate <= monthEnd;
+        }).length;
+      
+      case 'nextMonth':
+        const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        return allEvents.filter(event => {
+          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
+          return eventDate >= nextMonthStart && eventDate <= nextMonthEnd;
         }).length;
       
       case 'quarter':
@@ -351,7 +361,7 @@ export function Calendar({
                   <Button
                     variant="outline"
                     onClick={goToToday}
-                    className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 px-3 h-8 text-sm dark:bg-blue-900 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-800"
+                    className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 px-3 h-8 text-sm dark:bg-blue-900 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-800 rounded-lg"
                   >
                     Today
                   </Button>
@@ -528,7 +538,7 @@ export function Calendar({
                           )}
                           {event.location && (
                             <div className="flex items-center gap-1 mt-3">
-                              <MapPin className="h-4 w-4 text-green-500 flex-shrink-0" />
+                              <MapPin className="h-4 w-4 text-purple-500 flex-shrink-0" />
                               {isLikelyStreetAddress(event.location) ? (
                                 <a
                                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
@@ -549,7 +559,7 @@ export function Calendar({
                       {/* Event Link */}
                       {event.link && (
                         <div className="flex items-center gap-2 mt-3">
-                          <Link2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          <Link2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
                           <a 
                             href={event.link}
                             target="_blank"
@@ -565,7 +575,7 @@ export function Calendar({
                       {/* Event Notes/Description */}
                       {event.notes && (
                         <div className="flex items-start gap-2 mt-3">
-                          <FileText className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                          <FileText className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
                           <p className="text-sm text-muted-foreground line-clamp-2">
                             {event.notes}
                           </p>
@@ -599,7 +609,7 @@ export function Calendar({
             <Button 
               variant="outline" 
               onClick={handleAddEventClick}
-              className="text-blue-500 hover:text-blue-600 border-blue-500 hover:border-blue-600 rounded-full px-4 py-2 flex items-center gap-2 h-auto text-sm"
+              className="text-blue-500 hover:text-blue-600 border-blue-500 hover:border-blue-600 rounded-lg px-4 py-2 flex items-center gap-2 h-auto text-sm"
             >
               <Plus className="h-4 w-4" />
               Submit event

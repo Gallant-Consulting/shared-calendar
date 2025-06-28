@@ -33,6 +33,8 @@ export function EventListCompact({
         return 'This Week';
       case 'month':
         return 'This Month';
+      case 'nextMonth':
+        return 'Next Month';
       case 'quarter':
         return 'This Quarter';
       case 'all':

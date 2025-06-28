@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Filter, Link2, FileText, Building, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import type { Event, FilterType } from '../types';
+import type { Event, FilterType, Tag } from '../types';
+import { AVAILABLE_TAGS, TAG_LABELS } from '../types';
 
 interface EventListProps {
   events: Event[];
@@ -22,6 +23,32 @@ export function EventList({
   showHeader = true
 }: EventListProps) {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+
+  const handleTagToggle = (tag: Tag) => {
+    setSelectedTags(prev => {
+      if (prev.includes(tag)) {
+        return prev.filter(t => t !== tag);
+      } else {
+        return [...prev, tag];
+      }
+    });
+  };
+
+  const clearTagFilters = () => {
+    setSelectedTags([]);
+  };
+
+  // Filter events by selected tags
+  const filterEventsByTags = (events: Event[], tags: Tag[]): Event[] => {
+    if (tags.length === 0) return events;
+    return events.filter(event => 
+      event.tags && event.tags.some(tag => tags.includes(tag))
+    );
+  };
+
+  // Apply both time and tag filters
+  const filteredEvents = filterEventsByTags(events, selectedTags);
 
   const getFilterButtonText = (filter: FilterType) => {
     switch (filter) {
@@ -31,6 +58,8 @@ export function EventList({
         return 'This Week';
       case 'month':
         return 'This Month';
+      case 'nextMonth':
+        return 'Next Month';
       case 'quarter':
         return 'This Quarter';
       case 'all':
@@ -68,6 +97,14 @@ export function EventList({
           return eventDate >= monthStart && eventDate <= monthEnd;
         }).length;
       
+      case 'nextMonth':
+        const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        return allEvents.filter(event => {
+          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
+          return eventDate >= nextMonthStart && eventDate <= nextMonthEnd;
+        }).length;
+      
       case 'quarter':
         const quarter = Math.floor(now.getMonth() / 3);
         const quarterStart = new Date(now.getFullYear(), quarter * 3, 1);
@@ -96,6 +133,12 @@ export function EventList({
     }
   };
 
+  const isLikelyStreetAddress = (location: string) => {
+    if (!location) return false;
+    const streetSuffixes = /\b(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Ln|Lane|Way|Court|Pl|Place|Circle|Cir|Pkwy|Parkway|Terrace|Ter|Loop|Trail|Trl|Crescent|Cres|Highway|Hwy)\b/i;
+    return /\d/.test(location) && streetSuffixes.test(location);
+  };
+
   const formatEventDate = (event: Event) => {
     const dateStr = event.startDate.toLocaleDateString('en-US', { 
       weekday: 'short', 
@@ -112,7 +155,7 @@ export function EventList({
     return `${dateStr}, ${startTime} - ${endTime}`;
   };
 
-  const sortedEvents = [...events].sort((a, b) => {
+  const sortedEvents = [...filteredEvents].sort((a, b) => {
     // First, sort by date
     const dateA = new Date(a.startDate.getFullYear(), a.startDate.getMonth(), a.startDate.getDate());
     const dateB = new Date(b.startDate.getFullYear(), b.startDate.getMonth(), b.startDate.getDate());
@@ -131,14 +174,6 @@ export function EventList({
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Header */}
-      {showHeader && (
-        <div className="mb-6">
-          <h2 className="text-2xl font-medium mb-2">Central VA Startup Events</h2>
-          <p className="text-muted-foreground">Discover networking opportunities and events in the Central Virginia startup ecosystem.</p>
-        </div>
-      )}
-
       {/* Filter Section */}
       {allEvents.length > 1 && (
         <div className="mb-6 flex items-center gap-4 flex-wrap">
@@ -149,13 +184,13 @@ export function EventList({
             onClick={() => setIsFilterExpanded(!isFilterExpanded)}
           >
             <Filter className="h-4 w-4" />
-            {isFilterExpanded ? 'Hide Filters' : `Filter Events (${events.length} of ${allEvents.length} shown)`}
+            {isFilterExpanded ? 'Hide Filters' : `Filter Events (${filteredEvents.length} of ${allEvents.length} shown)`}
           </Button>
 
           {/* Filter Options - Inline when expanded */}
           {isFilterExpanded && (
             <div className="flex items-center gap-2 flex-wrap">
-              {(['all', 'today', 'week', 'month', 'quarter'] as FilterType[]).map((filter) => (
+              {(['all', 'today', 'week', 'month', 'nextMonth', 'quarter'] as FilterType[]).map((filter) => (
                 <Button
                   key={filter}
                   variant={currentFilter === filter ? "default" : "outline"}
@@ -184,6 +219,42 @@ export function EventList({
               )}
             </div>
           )}
+
+          {/* Tag Filter Section */}
+          {isFilterExpanded && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm font-medium text-muted-foreground">Filter by tags:</span>
+                {selectedTags.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearTagFilters}
+                    className="px-2 py-1 text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                  >
+                    Clear tags
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {AVAILABLE_TAGS.map((tag) => (
+                  <Button
+                    key={tag}
+                    variant={selectedTags.includes(tag) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleTagToggle(tag)}
+                    className={`px-3 py-1 text-xs ${
+                      selectedTags.includes(tag)
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white hover:text-white'
+                        : 'text-muted-foreground hover:text-foreground border-muted-foreground/20'
+                    }`}
+                  >
+                    {TAG_LABELS[tag]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -193,7 +264,7 @@ export function EventList({
           {sortedEvents.map((event) => (
             <div 
               key={event.id}
-              className="p-4 bg-card rounded-lg border border-border cursor-pointer hover:bg-muted/30 transition-colors"
+              className="p-5 bg-gray-100 dark:bg-gray-800 rounded-2xl cursor-pointer hover:bg-muted/50 transition-colors"
               onClick={() => onEventClick(event)}
             >
               <div className="flex items-start justify-between">
@@ -234,17 +305,29 @@ export function EventList({
                   
                   {/* Host Organization and Location */}
                   {(event.hostOrganization || event.location) && (
-                    <div className="flex items-center gap-4 mb-2 flex-wrap">
+                    <div className="mt-2">
                       {event.hostOrganization && (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 mb-2">
                           <Building className="h-4 w-4 text-green-500 flex-shrink-0" />
                           <span className="text-sm text-muted-foreground">{event.hostOrganization}</span>
                         </div>
                       )}
                       {event.location && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4 text-green-500 flex-shrink-0" />
-                          <span className="text-sm text-muted-foreground">{event.location}</span>
+                        <div className="flex items-center gap-1 mb-2">
+                          <MapPin className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                          {isLikelyStreetAddress(event.location) ? (
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-500 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {event.location}
+                            </a>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">{event.location}</span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -253,7 +336,7 @@ export function EventList({
                   {/* Event Link */}
                   {event.link && (
                     <div className="flex items-center gap-2 mb-2">
-                      <Link2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      <Link2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
                       <a 
                         href={event.link}
                         target="_blank"
@@ -269,7 +352,7 @@ export function EventList({
                   {/* Event Notes/Description */}
                   {event.notes && (
                     <div className="flex items-start gap-2">
-                      <FileText className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      <FileText className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {event.notes}
                       </p>
@@ -304,21 +387,6 @@ export function EventList({
           </p>
         </div>
       )}
-
-      {/* Footer for embeds */}
-      <div className="mt-8 pt-4 border-t border-border text-center">
-        <p className="text-sm text-muted-foreground">
-          Powered by{' '}
-          <a 
-            href="#" 
-            className="text-blue-400 hover:text-blue-300 hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Central VA Startup Ecosystem
-          </a>
-        </p>
-      </div>
     </div>
   );
 }

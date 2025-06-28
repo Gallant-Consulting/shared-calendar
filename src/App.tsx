@@ -1,16 +1,19 @@
 import './styles/globals.css'
 import React, { useState, useEffect } from 'react';
 import { Calendar } from './components/Calendar';
+import { EventList } from './components/EventList';
 import { FloatingNewEventButton } from './components/FloatingNewEventButton';
 import { EventModal } from './components/EventModal';
 import { EventDetailsModal } from './components/EventDetailsModal';
+import { SettingsModal } from './components/SettingsModal';
 import { Button } from './components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu';
-import { Moon, Sun, MoreHorizontal, Info, Settings, Download, Printer, HelpCircle, ExternalLink } from 'lucide-react';
+import { Moon, Sun, MoreHorizontal, Info, Settings as SettingsIcon, Download, Printer, HelpCircle, ExternalLink, Calendar as CalendarIcon, List } from 'lucide-react';
 import type { Event, FilterType } from './types';
 import { AVAILABLE_TAGS } from './types';
 import { getEvents, addEvent as apiAddEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent } from './services/googleSheetApi';
+import { getSettings, updateSettings, DEFAULT_SETTINGS, type Settings } from './services/settingsApi';
 
 // Sample events for demonstration
 const generateSampleEvents = (): Event[] => [
@@ -155,11 +158,22 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [viewingEvent, setViewingEvent] = useState<Event | null>(null);
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all');
+  const [viewSwitch, setViewSwitch] = useState<'calendar' | 'list'>('calendar');
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  // URL parameter handling for direct event links
+  // URL parameter handling for view switching and direct event links
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const eventId = urlParams.get('event');
+    const view = urlParams.get('view') as 'calendar' | 'list' | null;
+    
+    // Handle view switching
+    if (view === 'list') {
+      setViewSwitch('list');
+    } else if (view === 'calendar' || !view) {
+      setViewSwitch('calendar');
+    }
     
     if (eventId) {
       // Store the event ID to check once events are loaded
@@ -195,6 +209,14 @@ export default function App() {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const eventId = urlParams.get('event');
+      const view = urlParams.get('view') as 'calendar' | 'list' | null;
+      
+      // Handle view switching
+      if (view === 'list') {
+        setViewSwitch('list');
+      } else if (view === 'calendar' || !view) {
+        setViewSwitch('calendar');
+      }
       
       if (eventId && events.length > 0) {
         const event = events.find(e => e.id === eventId);
@@ -238,6 +260,18 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Load settings from API on mount
+  useEffect(() => {
+    getSettings()
+      .then(data => {
+        setSettings(data);
+      })
+      .catch(e => {
+        console.warn('Failed to load settings:', e);
+        setSettings(DEFAULT_SETTINGS);
+      });
+  }, []);
+
   const filterEvents = (events: Event[], filter: FilterType): Event[] => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -265,6 +299,14 @@ export default function App() {
         return events.filter(event => {
           const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
           return eventDate >= monthStart && eventDate <= monthEnd;
+        });
+      
+      case 'nextMonth':
+        const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        return events.filter(event => {
+          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
+          return eventDate >= nextMonthStart && eventDate <= nextMonthEnd;
         });
       
       case 'quarter':
@@ -390,6 +432,18 @@ export default function App() {
     setCurrentFilter(filter);
   };
 
+  const handleViewSwitch = (view: 'calendar' | 'list') => {
+    setViewSwitch(view);
+    // Update URL with view parameter
+    const newUrl = new URL(window.location.href);
+    if (view === 'calendar') {
+      newUrl.searchParams.delete('view');
+    } else {
+      newUrl.searchParams.set('view', view);
+    }
+    window.history.pushState({}, '', newUrl.toString());
+  };
+
   const handleExportCalendar = () => {
     // console.log('Export calendar clicked');
   };
@@ -400,7 +454,17 @@ export default function App() {
   };
 
   const handleOpenSettings = () => {
-    // console.log('Settings clicked');
+    setIsSettingsModalOpen(true);
+  };
+
+  const handleSaveSettings = async (newSettings: Settings) => {
+    try {
+      await updateSettings(newSettings);
+      setSettings(newSettings);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      throw error;
+    }
   };
 
   const handleOpenHelp = () => {
@@ -426,7 +490,7 @@ export default function App() {
       {/* Main Title Section - Above main content */}
       <div className="py-16 text-center">
         <div className="flex items-center justify-center gap-4">
-          <h1 className="text-4xl font-medium">Shared Calendar - Central VA ESOs</h1>
+          <h1 className="text-4xl font-medium">{settings.site_title}</h1>
           <Button
             variant="ghost"
             size="icon"
@@ -447,16 +511,37 @@ export default function App() {
               <FloatingNewEventButton onClick={() => handleNewEvent()} />
             </div>
             
-            <div className="text-center">
-              <a 
-                href="#" 
-                className="text-blue-400 hover:text-blue-300 underline text-sm"
-              >
-                Add this schedule to HEY Calendar, Google Calendar, Outlook, or iCal...
-              </a>
-            </div>
-            
             <div className="flex items-center gap-2">
+              {/* View Toggle Buttons */}
+              <div className="flex items-center gap-2 border border-border rounded-lg p-1 bg-muted/50">
+                <Button
+                  variant={viewSwitch === 'calendar' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleViewSwitch('calendar')}
+                  className={`flex items-center gap-2 px-3 py-1 h-auto ${
+                    viewSwitch === 'calendar' 
+                      ? 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-800' 
+                      : ''
+                  }`}
+                >
+                  <CalendarIcon className="h-4 w-4" />
+                  Calendar
+                </Button>
+                <Button
+                  variant={viewSwitch === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleViewSwitch('list')}
+                  className={`flex items-center gap-2 px-3 py-1 h-auto ${
+                    viewSwitch === 'list' 
+                      ? 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-800' 
+                      : ''
+                  }`}
+                >
+                  <List className="h-4 w-4" />
+                  List
+                </Button>
+              </div>
+              
               <Button
                 variant="ghost"
                 size="icon"
@@ -473,7 +558,7 @@ export default function App() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem onClick={handleOpenSettings}>
-                    <Settings className="h-4 w-4 mr-2" />
+                    <SettingsIcon className="h-4 w-4 mr-2" />
                     Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -511,16 +596,27 @@ export default function App() {
             </div>
           </div>
 
-          {/* Calendar */}
-          <Calendar 
-            events={filteredEvents}
-            allEvents={events}
-            onDateSelect={handleDateSelect}
-            onEventClick={handleViewEvent}
-            onNewEventClick={handleNewEvent}
-            currentFilter={currentFilter}
-            onFilterChange={handleFilterChange}
-          />
+          {/* Main Content - Calendar or List View */}
+          {viewSwitch === 'calendar' ? (
+            <Calendar 
+              events={filteredEvents}
+              allEvents={events}
+              onDateSelect={handleDateSelect}
+              onEventClick={handleViewEvent}
+              onNewEventClick={handleNewEvent}
+              currentFilter={currentFilter}
+              onFilterChange={handleFilterChange}
+            />
+          ) : (
+            <EventList
+              events={filteredEvents}
+              allEvents={events}
+              onEventClick={handleViewEvent}
+              currentFilter={currentFilter}
+              onFilterChange={handleFilterChange}
+              showHeader={true}
+            />
+          )}
         </div>
       </div>
 
@@ -536,15 +632,17 @@ export default function App() {
             </span>
           </div>
           <div className="flex items-center gap-6 text-sm">
-            <a href="#" className="text-blue-400 hover:text-blue-300 underline transition-colors">
-              Terms of Service
-            </a>
-            <a href="#" className="text-blue-400 hover:text-blue-300 underline transition-colors">
-              Privacy Policy
-            </a>
-            <a href="#" className="text-blue-400 hover:text-blue-300 underline transition-colors">
-              Cookie Policy
-            </a>
+            {settings.footer_links.map((link, index) => (
+              <a 
+                key={index}
+                href={link.url} 
+                className="text-blue-400 hover:text-blue-300 underline transition-colors"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {link.text}
+              </a>
+            ))}
           </div>
         </div>
       </div>
@@ -561,7 +659,7 @@ export default function App() {
           
           <div className="py-4">
             <p className="text-base leading-relaxed text-muted-foreground">
-              A shared calendar for ESO practitioners.
+              {settings.site_description}
             </p>
           </div>
           
@@ -594,8 +692,17 @@ export default function App() {
           onDelete={editingEvent ? () => handleDeleteEvent(editingEvent.id) : undefined}
           initialData={editingEvent}
           selectedDate={selectedDate}
+          settings={settings}
         />
       </ErrorBoundary>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        onSave={handleSaveSettings}
+        currentSettings={settings}
+      />
     </div>
   );
 }

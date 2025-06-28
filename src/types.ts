@@ -13,14 +13,17 @@ export interface Event {
   notes?: string;
   hostOrganization?: string;
   location?: string;
-  tags?: Tag[];
+  tags?: string[];
 }
 
-export type FilterType = 'all' | 'today' | 'week' | 'month' | 'quarter';
+export type FilterType = 'all' | 'today' | 'week' | 'month' | 'nextMonth' | 'quarter';
+
+// Default tag options (fallback if settings not loaded)
+export const DEFAULT_TAGS = ['ESO', 'PAID', 'NETWORKING'] as const;
+export type Tag = string;
 
 // Available tag options
 export const AVAILABLE_TAGS = ['ESO', 'PAID', 'NETWORKING', 'VIRTUAL'] as const;
-export type Tag = typeof AVAILABLE_TAGS[number];
 export const TAG_LABELS: Record<Tag, string> = {
   ESO: 'ESO Hosted',
   PAID: 'Paid',

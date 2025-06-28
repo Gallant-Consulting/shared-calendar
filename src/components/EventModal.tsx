@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Link2, FileText, Plus, X, Building, MapPin, Tag } from 'lucide-react';
-import type { Event, Tag as TagType } from '../types';
-import { AVAILABLE_TAGS } from '../types';
+import type { Event } from '../types';
+import type { Settings } from '../services/settingsApi';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -18,6 +18,7 @@ interface EventModalProps {
   onDelete?: () => void;
   initialData?: Event | null;
   selectedDate?: Date | null;
+  settings: Settings;
 }
 
 interface Attendee {
@@ -31,7 +32,8 @@ export function EventModal({
   onSave, 
   onDelete, 
   initialData, 
-  selectedDate 
+  selectedDate, 
+  settings 
 }: EventModalProps) {
   const [title, setTitle] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -46,7 +48,7 @@ export function EventModal({
   const [notes, setNotes] = useState('');
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [newAttendeeName, setNewAttendeeName] = useState('');
-  const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // console.log('EventModal render:', { isOpen, selectedDate });
 
@@ -97,7 +99,7 @@ export function EventModal({
     setAttendees(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleToggleTag = (tag: TagType) => {
+  const handleToggleTag = (tag: string) => {
     setSelectedTags(prev => {
       if (prev.includes(tag)) {
         return prev.filter(t => t !== tag);
@@ -293,7 +295,7 @@ export function EventModal({
               {/* Selected Tags Display */}
               {selectedTags.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {selectedTags.map((tag: TagType) => (
+                  {selectedTags.map((tag: string) => (
                     <Badge
                       key={tag}
                       variant="secondary"
@@ -309,7 +311,7 @@ export function EventModal({
               
               {/* Available Tags */}
               <div className="flex flex-wrap gap-2">
-                {AVAILABLE_TAGS.filter(tag => !selectedTags.includes(tag)).map((tag: TagType) => (
+                {settings.tags.filter(tag => !selectedTags.includes(tag)).map((tag: string) => (
                   <Button
                     key={tag}
                     type="button"
