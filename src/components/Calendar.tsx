@@ -277,10 +277,17 @@ export function Calendar({
 
   const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
   const selectedDateEvents = filterEventsByDateAndTags(events, selectedDate, selectedTags);
-  const allEventsForSelectedDate = selectedDate ? getEventsForDate(selectedDate, events) : [];
+  const allEventsForSelectedDate = selectedDate ? getEventsForDate(selectedDate, allEvents) : [];
 
-  // Sort by start time
-  selectedDateEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  // Sort events: all-day events first, then by start time
+  selectedDateEvents.sort((a, b) => {
+    // If same date, all-day events come first
+    if (a.isAllDay && !b.isAllDay) return -1;
+    if (!a.isAllDay && b.isAllDay) return 1;
+    
+    // If both are all-day or both have times, sort by start time
+    return a.startDate.getTime() - b.startDate.getTime();
+  });
 
   const handleTagClick = (tag: Tag) => {
     let newTags;
@@ -417,7 +424,7 @@ export function Calendar({
           </div>
 
           {/* Tag filter toggle and buttons - moved here */}
-          {selectedDate && allEventsForSelectedDate.length > 0 && (
+          {selectedDate && allEventsForSelectedDate.length > 1 && (
             <div className="mt-4 ml-8">
               <Button
                 type="button"
@@ -478,7 +485,7 @@ export function Calendar({
                         <h4 className="text-lg font-medium flex items-center gap-2">
                           {event.title}
                           <a
-                            href={`/event/${event.id}`}
+                            href={`?event=${event.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-400 hover:text-blue-300"
@@ -595,7 +602,7 @@ export function Calendar({
               className="text-blue-500 hover:text-blue-600 border-blue-500 hover:border-blue-600 rounded-full px-4 py-2 flex items-center gap-2 h-auto text-sm"
             >
               <Plus className="h-4 w-4" />
-              New event
+              Submit event
             </Button>
           </div>
         </>

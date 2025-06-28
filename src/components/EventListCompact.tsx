@@ -80,7 +80,22 @@ export function EventListCompact({
     return `${dateStr}, ${startTime}`;
   };
 
-  const sortedEvents = [...events].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  const sortedEvents = [...events].sort((a, b) => {
+    // First, sort by date
+    const dateA = new Date(a.startDate.getFullYear(), a.startDate.getMonth(), a.startDate.getDate());
+    const dateB = new Date(b.startDate.getFullYear(), b.startDate.getMonth(), b.startDate.getDate());
+    
+    if (dateA.getTime() !== dateB.getTime()) {
+      return dateA.getTime() - dateB.getTime();
+    }
+    
+    // If same date, all-day events come first
+    if (a.isAllDay && !b.isAllDay) return -1;
+    if (!a.isAllDay && b.isAllDay) return 1;
+    
+    // If both are all-day or both have times, sort by start time
+    return a.startDate.getTime() - b.startDate.getTime();
+  });
   const displayEvents = sortedEvents.slice(0, maxEvents);
   const hasMoreEvents = sortedEvents.length > maxEvents;
 

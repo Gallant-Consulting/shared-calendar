@@ -116,22 +116,35 @@ export async function getEvents() {
   // })));
 
   // Map rows to event objects
-  return approvedRows.map((row: any, idx: number) => ({
-    id: row.id || generateGuid(),
-    title: row.title,
-    startDate: new Date(row.startDate),
-    endDate: new Date(row.endDate),
-    isAllDay: row.isAllDay === 'true' || row.isAllDay === true,
-    attendees: parseCSV(row.attendees).map((name: string) => ({ name, avatar: '' })),
-    link: row.link,
-    repeat: row.repeat || undefined,
-    notes: row.notes,
-    hostOrganization: row.hostOrganization,
-    location: row.location,
-    tags: Array.isArray(row.tags)
-      ? row.tags.map((t: string) => t.toUpperCase())
-      : parseCSV(row.tags).map((t: string) => t.toUpperCase()),
-  }));
+  return approvedRows.map((row: any, idx: number) => {
+    // Parse dates properly to avoid timezone issues
+    const parseDate = (dateStr: string) => {
+      if (!dateStr) return new Date();
+      // If it's just a date string (YYYY-MM-DD), create it in local timezone
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day); // month is 0-indexed
+      }
+      return new Date(dateStr);
+    };
+
+    return {
+      id: row.id || generateGuid(),
+      title: row.title,
+      startDate: parseDate(row.startDate),
+      endDate: parseDate(row.endDate),
+      isAllDay: row.isAllDay === 'TRUE' || row.isAllDay === 'true' || row.isAllDay === true,
+      attendees: parseCSV(row.attendees).map((name: string) => ({ name, avatar: '' })),
+      link: row.link,
+      repeat: row.repeat || undefined,
+      notes: row.notes,
+      hostOrganization: row.hostOrganization,
+      location: row.location,
+      tags: Array.isArray(row.tags)
+        ? row.tags.map((t: string) => t.toUpperCase())
+        : parseCSV(row.tags).map((t: string) => t.toUpperCase()),
+    };
+  });
 }
 
 export async function addEvent(event: any) {
@@ -143,10 +156,33 @@ export async function addEvent(event: any) {
     return eventWithGuid;
   }
   
+  // Convert event object to array format expected by NocodeAPI
+  // Column order: status, tags, id, title, startDate, endDate, isAllDay, repeat, repeatUntil, 
+  // hostOrganization, isPaid, cost, location, notes, link, image, eventUrl
+  const rowData = [
+    "", // status (empty for new events - needs approval)
+    eventWithGuid.tags ? eventWithGuid.tags.join(', ') : "", // tags
+    eventWithGuid.id, // id
+    eventWithGuid.title, // title
+    eventWithGuid.startDate ? eventWithGuid.startDate.toISOString().split('T')[0] : "", // startDate
+    eventWithGuid.endDate ? eventWithGuid.endDate.toISOString().split('T')[0] : "", // endDate
+    eventWithGuid.isAllDay ? "TRUE" : "FALSE", // isAllDay
+    eventWithGuid.repeat?.frequency || "", // repeat
+    eventWithGuid.repeat?.until ? eventWithGuid.repeat.until.toISOString().split('T')[0] : "", // repeatUntil
+    eventWithGuid.hostOrganization || "", // hostOrganization
+    "", // isPaid (empty for now)
+    "", // cost (empty for now)
+    eventWithGuid.location || "", // location
+    eventWithGuid.notes || "", // notes
+    eventWithGuid.link || "", // link
+    "", // image (empty for now)
+    "" // eventUrl (empty for now)
+  ];
+  
   const res = await fetch(`${NOCODE_API_ENDPOINT}?tabId=${encodeURIComponent(SHEET_TAB)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(eventWithGuid),
+    body: JSON.stringify([rowData]), // Wrap in array as expected by API
   });
   return await handleApiResponse(res);
 }

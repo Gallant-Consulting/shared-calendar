@@ -13,7 +13,7 @@ export function FloatingNewEventButton({ onClick }: FloatingNewEventButtonProps)
       className="bg-blue-500 hover:bg-blue-600 text-white hover:text-white rounded-full px-4 py-2 flex items-center gap-2"
     >
       <Plus className="h-4 w-4" />
-      New event
+      Submit event
     </Button>
   );
 }

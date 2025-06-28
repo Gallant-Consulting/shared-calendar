@@ -160,10 +160,10 @@ export function EventModal({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="p-8 pb-0">
           <DialogTitle className="text-2xl">
-            {initialData ? 'Edit Event' : 'Create New Event'}
+            {initialData ? 'Edit Event' : 'Submit New Event'}
           </DialogTitle>
           <DialogDescription className="text-lg mt-2">
-            {initialData ? 'Edit the details of your event' : 'Fill in the details to create a new event'}
+            {initialData ? 'Edit the details of your event' : 'Fill in the details to submit a new event for approval'}
           </DialogDescription>
         </DialogHeader>
 
@@ -462,7 +462,7 @@ export function EventModal({
               onClick={handleSave} 
               className="bg-blue-600 hover:bg-blue-700 text-white hover:text-white text-lg px-8 py-3 h-auto"
             >
-              {initialData ? 'Update Event' : 'Create Event'}
+              {initialData ? 'Update Event' : 'Submit Event'}
             </Button>
             <Button 
               variant="outline" 

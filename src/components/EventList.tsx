@@ -112,7 +112,22 @@ export function EventList({
     return `${dateStr}, ${startTime} - ${endTime}`;
   };
 
-  const sortedEvents = [...events].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  const sortedEvents = [...events].sort((a, b) => {
+    // First, sort by date
+    const dateA = new Date(a.startDate.getFullYear(), a.startDate.getMonth(), a.startDate.getDate());
+    const dateB = new Date(b.startDate.getFullYear(), b.startDate.getMonth(), b.startDate.getDate());
+    
+    if (dateA.getTime() !== dateB.getTime()) {
+      return dateA.getTime() - dateB.getTime();
+    }
+    
+    // If same date, all-day events come first
+    if (a.isAllDay && !b.isAllDay) return -1;
+    if (!a.isAllDay && b.isAllDay) return 1;
+    
+    // If both are all-day or both have times, sort by start time
+    return a.startDate.getTime() - b.startDate.getTime();
+  });
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -125,50 +140,52 @@ export function EventList({
       )}
 
       {/* Filter Section */}
-      <div className="mb-6 flex items-center gap-4 flex-wrap">
-        {/* Filter Toggle Button */}
-        <Button 
-          variant="outline" 
-          className="text-blue-500 hover:text-blue-600 border-blue-500 hover:border-blue-600 text-sm flex items-center gap-2"
-          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-        >
-          <Filter className="h-4 w-4" />
-          {isFilterExpanded ? 'Hide Filters' : `Filter Events (${events.length} of ${allEvents.length} shown)`}
-        </Button>
+      {allEvents.length > 1 && (
+        <div className="mb-6 flex items-center gap-4 flex-wrap">
+          {/* Filter Toggle Button */}
+          <Button 
+            variant="outline" 
+            className="text-blue-500 hover:text-blue-600 border-blue-500 hover:border-blue-600 text-sm flex items-center gap-2"
+            onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          >
+            <Filter className="h-4 w-4" />
+            {isFilterExpanded ? 'Hide Filters' : `Filter Events (${events.length} of ${allEvents.length} shown)`}
+          </Button>
 
-        {/* Filter Options - Inline when expanded */}
-        {isFilterExpanded && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {(['all', 'today', 'week', 'month', 'quarter'] as FilterType[]).map((filter) => (
-              <Button
-                key={filter}
-                variant={currentFilter === filter ? "default" : "outline"}
-                size="sm"
-                onClick={() => onFilterChange(filter)}
-                className={`px-4 py-2 text-sm ${
-                  currentFilter === filter 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white hover:text-white' 
-                    : 'text-muted-foreground hover:text-foreground border-muted-foreground/20'
-                }`}
-              >
-                {getFilterButtonText(filter)} ({getFilterCount(filter)})
-              </Button>
-            ))}
-            
-            {/* Clear Filter Button */}
-            {currentFilter !== 'all' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onFilterChange('all')}
-                className="px-4 py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-              >
-                Clear Filter
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+          {/* Filter Options - Inline when expanded */}
+          {isFilterExpanded && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {(['all', 'today', 'week', 'month', 'quarter'] as FilterType[]).map((filter) => (
+                <Button
+                  key={filter}
+                  variant={currentFilter === filter ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onFilterChange(filter)}
+                  className={`px-4 py-2 text-sm ${
+                    currentFilter === filter 
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white hover:text-white' 
+                      : 'text-muted-foreground hover:text-foreground border-muted-foreground/20'
+                  }`}
+                >
+                  {getFilterButtonText(filter)} ({getFilterCount(filter)})
+                </Button>
+              ))}
+              
+              {/* Clear Filter Button */}
+              {currentFilter !== 'all' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onFilterChange('all')}
+                  className="px-4 py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                >
+                  Clear Filter
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Events List */}
       {sortedEvents.length > 0 ? (
@@ -186,10 +203,10 @@ export function EventList({
                       {event.title}
                       <a
                         href={`?event=${event.id}`}
+                        className="text-blue-400 hover:text-blue-300"
+                        onClick={e => e.stopPropagation()}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-400 hover:text-blue-300"
-                        onClick={(e) => e.stopPropagation()}
                       >
                         <Link2 className="h-4 w-4 inline" />
                       </a>

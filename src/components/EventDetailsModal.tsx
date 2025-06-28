@@ -1,9 +1,9 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from './ui/dialog';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, MapPin, Users, Link2, Building, FileText, Edit, Trash2, MoreHorizontal } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Link2, Building, FileText, Edit, Trash2, MoreHorizontal, XIcon } from 'lucide-react';
 import type { Event } from '../types';
 
 interface EventDetailsModalProps {
@@ -113,13 +113,13 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
               
               {/* Event Title */}
               <div className="flex flex-col gap-2">
-                <h2 className="text-2xl font-medium flex items-center gap-2">
+                <h2 className="text-2xl font-medium">
                   {event.title}
                   <a
                     href={`?event=${event.id}`}
+                    className="text-blue-400 hover:text-blue-300 ml-2"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300"
                   >
                     <Link2 className="h-5 w-5 inline" />
                   </a>
@@ -261,7 +261,7 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
             Add to my calendar
           </Button>
           <Button variant="outline" className="text-base px-4 py-2" disabled>
-            Submit Edit
+            Submit edit
           </Button>
         </div>
       </DialogContent>
