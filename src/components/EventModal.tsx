@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Link2, FileText, Plus, X, Building, MapPin, Tag } from 'lucide-react';
-import type { Event } from '../types';
+import type { Event, Tag as TagType } from '../types';
 import { AVAILABLE_TAGS } from '../types';
 
 interface EventModalProps {
@@ -46,12 +46,12 @@ export function EventModal({
   const [notes, setNotes] = useState('');
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [newAttendeeName, setNewAttendeeName] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<TagType[]>([]);
 
-  console.log('EventModal render:', { isOpen, selectedDate });
+  // console.log('EventModal render:', { isOpen, selectedDate });
 
   useEffect(() => {
-    console.log('EventModal useEffect - initializing data');
+    // console.log('EventModal useEffect - initializing data');
     
     if (initialData) {
       setTitle(initialData.title);
@@ -97,7 +97,7 @@ export function EventModal({
     setAttendees(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleToggleTag = (tag: string) => {
+  const handleToggleTag = (tag: TagType) => {
     setSelectedTags(prev => {
       if (prev.includes(tag)) {
         return prev.filter(t => t !== tag);
@@ -121,7 +121,7 @@ export function EventModal({
   };
 
   const handleSave = () => {
-    console.log('EventModal handleSave');
+    // console.log('EventModal handleSave');
     
     const startDateTime = new Date(`${startDate}T${isAllDay ? '00:00' : startTime}`);
     const endDateTime = new Date(`${startDate}T${isAllDay ? '23:59' : endTime}`);
@@ -152,12 +152,12 @@ export function EventModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-      console.log('Dialog onOpenChange:', open);
+      // console.log('Dialog onOpenChange:', open);
       if (!open) {
         onClose();
       }
     }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="p-8 pb-0">
           <DialogTitle className="text-2xl">
             {initialData ? 'Edit Event' : 'Create New Event'}
@@ -293,7 +293,7 @@ export function EventModal({
               {/* Selected Tags Display */}
               {selectedTags.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {selectedTags.map((tag) => (
+                  {selectedTags.map((tag: TagType) => (
                     <Badge
                       key={tag}
                       variant="secondary"
@@ -309,7 +309,7 @@ export function EventModal({
               
               {/* Available Tags */}
               <div className="flex flex-wrap gap-2">
-                {AVAILABLE_TAGS.filter(tag => !selectedTags.includes(tag)).map((tag) => (
+                {AVAILABLE_TAGS.filter(tag => !selectedTags.includes(tag)).map((tag: TagType) => (
                   <Button
                     key={tag}
                     type="button"

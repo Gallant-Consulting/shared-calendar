@@ -88,6 +88,14 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
 
   const dateBadge = getDateBadge();
 
+  // Simple street address validation
+  const isLikelyStreetAddress = (location: string) => {
+    if (!location) return false;
+    // Must contain a number and a common street suffix
+    const streetSuffixes = /\b(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Ln|Lane|Way|Court|Pl|Place|Circle|Cir|Pkwy|Parkway|Terrace|Ter|Loop|Trail|Trl|Crescent|Cres|Highway|Hwy)\b/i;
+    return /\d/.test(location) && streetSuffixes.test(location);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl bg-card border border-border p-8">
@@ -95,8 +103,8 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
           <DialogTitle className="sr-only">Event Details</DialogTitle>
           <DialogDescription className="sr-only">View details for {event.title}</DialogDescription>
           
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-start gap-4">
               {/* Date Badge */}
               <div className="bg-yellow-500 text-black px-3 py-2 rounded text-sm font-medium flex flex-col items-center min-w-[50px]">
                 <div className="text-sm">{dateBadge.month}</div>
@@ -105,7 +113,17 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
               
               {/* Event Title */}
               <div className="flex flex-col gap-2">
-                <h2 className="text-2xl font-medium">{event.title}</h2>
+                <h2 className="text-2xl font-medium flex items-center gap-2">
+                  {event.title}
+                  <a
+                    href={`?event=${event.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300"
+                  >
+                    <Link2 className="h-5 w-5 inline" />
+                  </a>
+                </h2>
                 
                 {/* Tags */}
                 {event.tags && event.tags.length > 0 && (
@@ -123,16 +141,6 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
                 )}
               </div>
             </div>
-            
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={onEdit} className="text-muted-foreground hover:text-foreground px-4 py-2">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-              <Button variant="ghost" size="icon" className="text-muted-foreground h-10 w-10">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </div>
           </div>
         </DialogHeader>
 
@@ -140,18 +148,21 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
           {/* When */}
           <div className="flex justify-between items-start">
             <div>
-              <div className="text-base font-medium text-muted-foreground mb-2">When</div>
+              <div className="text-lg font-bold text-foreground flex items-center gap-2 mb-2">
+                <Calendar className="h-5 w-5 text-blue-500" />
+                When
+              </div>
               <div className="text-lg">{formatDateTimeRange()}</div>
             </div>
-            <Button variant="link" className="text-blue-400 hover:text-blue-300 text-base p-0 h-auto">
-              Add to my calendar...
-            </Button>
           </div>
 
           {/* Repeats */}
           {formatRepeat() && (
             <div>
-              <div className="text-base font-medium text-muted-foreground mb-2">Repeats</div>
+              <div className="text-lg font-bold text-foreground flex items-center gap-2 mb-2">
+                <Clock className="h-5 w-5 text-indigo-500" />
+                Repeats
+              </div>
               <div className="text-lg">{formatRepeat()}</div>
             </div>
           )}
@@ -159,8 +170,8 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
           {/* Host Organization */}
           {event.hostOrganization && (
             <div>
-              <div className="text-base font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                <Building className="h-4 w-4" />
+              <div className="text-lg font-bold text-foreground flex items-center gap-2 mb-2">
+                <Building className="h-5 w-5 text-green-500" />
                 Hosted by
               </div>
               <div className="text-lg">{event.hostOrganization}</div>
@@ -170,18 +181,34 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
           {/* Location */}
           {event.location && (
             <div>
-              <div className="text-base font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
+              <div className="text-lg font-bold text-foreground flex items-center gap-2 mb-2">
+                <MapPin className="h-5 w-5 text-purple-500" />
                 Location
               </div>
-              <div className="text-lg">{event.location}</div>
+              <div className="text-lg">
+                {isLikelyStreetAddress(event.location) ? (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    {event.location}
+                  </a>
+                ) : (
+                  event.location
+                )}
+              </div>
             </div>
           )}
 
           {/* With (Attendees) */}
           {event.attendees.length > 0 && (
             <div>
-              <div className="text-base font-medium text-muted-foreground mb-3">With</div>
+              <div className="text-lg font-bold text-foreground flex items-center gap-2 mb-3">
+                <Users className="h-5 w-5 text-pink-500" />
+                With
+              </div>
               <div className="flex items-center gap-3">
                 {event.attendees.map((attendee, index) => (
                   <div key={index} className="flex items-center gap-3">
@@ -200,7 +227,10 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
           {/* Link */}
           {event.link && (
             <div>
-              <div className="text-base font-medium text-muted-foreground mb-2">Link</div>
+              <div className="text-lg font-bold text-foreground flex items-center gap-2 mb-2">
+                <Link2 className="h-5 w-5 text-blue-500" />
+                Link
+              </div>
               <a 
                 href={event.link} 
                 target="_blank" 
@@ -215,20 +245,24 @@ export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetai
           {/* Notes */}
           {event.notes && (
             <div>
-              <div className="text-base font-medium text-muted-foreground mb-2">Notes</div>
+              <div className="text-lg font-bold text-foreground flex items-center gap-2 mb-2">
+                <FileText className="h-5 w-5 text-yellow-500" />
+                Notes
+              </div>
               <div className="text-lg leading-relaxed">{event.notes}</div>
             </div>
           )}
+        </div>
 
-          {/* Added by */}
-          <div className="pt-6 border-t border-border">
-            <div className="text-sm text-muted-foreground mb-3">Added by</div>
-            <div className="flex items-center gap-2">
-              <span className="text-base text-muted-foreground">
-                {event.attendees[0]?.name.split(' ')[0]} {event.attendees[0]?.name.split(' ')[1]?.[0]}
-              </span>
-            </div>
-          </div>
+        {/* Bottom row: Actions */}
+        <div className="flex items-center gap-4 mt-8 border-t border-gray-200 dark:border-border pt-6">
+          <span className="text-base text-muted-foreground font-medium">Actions:</span>
+          <Button variant="outline" className="text-base px-4 py-2" disabled>
+            Add to my calendar
+          </Button>
+          <Button variant="outline" className="text-base px-4 py-2" disabled>
+            Submit Edit
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

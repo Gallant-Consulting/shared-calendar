@@ -135,7 +135,18 @@ export function EventListCompact({
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h4 className="font-medium truncate">{event.title}</h4>
+                    <h4 className="font-medium truncate flex items-center gap-1">
+                      {event.title}
+                      <a
+                        href={`?event=${event.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Link2 className="h-3 w-3 inline" />
+                      </a>
+                    </h4>
                     
                     {/* Tags */}
                     {event.tags && event.tags.length > 0 && (

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Link2, FileText, ChevronUp, ChevronDown, Filter, Calendar as CalendarIcon, EyeOff, Building, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import type { Event, FilterType } from '../types';
+import { AVAILABLE_TAGS, TAG_LABELS } from '../types';
+import type { Event, FilterType, Tag } from '../types';
 
 interface CalendarProps {
   events: Event[];
@@ -25,8 +26,8 @@ export function Calendar({
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date(2025, 5, 1)); // June 2025
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date()); // Initialize with today's date
-  const [isCalendarExpanded, setIsCalendarExpanded] = useState(true);
-  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([...AVAILABLE_TAGS]);
+  const [showTagFilters, setShowTagFilters] = useState(false);
 
   const today = new Date();
   const currentYear = today.getFullYear();
@@ -75,12 +76,17 @@ export function Calendar({
   const getEventsForDate = (date: Date, eventList: Event[] = allEvents) => {
     return eventList.filter(event => {
       const eventDate = new Date(event.startDate);
-      return eventDate.toDateString() === date.toDateString();
+      return (
+        eventDate.getFullYear() === date.getFullYear() &&
+        eventDate.getMonth() === date.getMonth() &&
+        eventDate.getDate() === date.getDate()
+      );
     });
   };
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
+    setSelectedTags([...AVAILABLE_TAGS]);
     onDateSelect(date);
   };
 
@@ -184,32 +190,31 @@ export function Calendar({
     if (eventCount === 1) {
       return (
         <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
-          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+          <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
         </div>
       );
     }
 
     if (eventCount === 2) {
       return (
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
-          <div className="flex items-center justify-center gap-1">
-            <div className="w-1.5 h-1.5 bg-green-600 rounded-full"></div>
-            <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-          </div>
+        <div className="absolute bottom-2 left-1/2 flex gap-0.5 transform -translate-x-1/2">
+          <div className="w-1.5 h-1.5 bg-yellow-300 rounded-full"></div>
+          <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
         </div>
       );
     }
 
-    // 3 or more events
-    return (
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
-        <div className="flex items-center justify-center gap-1">
-          <div className="w-1.5 h-1.5 bg-green-600 rounded-full"></div>
-          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-          <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+    if (eventCount >= 3) {
+      return (
+        <div className="absolute bottom-2 left-1/2 flex gap-0.5 transform -translate-x-1/2">
+          <div className="w-1.5 h-1.5 bg-yellow-200 rounded-full"></div>
+          <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+          <div className="w-1.5 h-1.5 bg-yellow-600 rounded-full"></div>
         </div>
-      </div>
-    );
+      );
+    }
+
+    return null;
   };
 
   const renderMonth = (monthDate: Date) => {
@@ -217,256 +222,289 @@ export function Calendar({
     const firstDay = getFirstDayOfMonth(monthDate);
     const days = [];
 
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      const isFirstColumn = i === 0;
-      const isFirstRow = true; // Empty cells are always in the first row
-      days.push(
-        <div 
-          key={`empty-${i}`} 
-          className={`h-16 border-r border-b border-border ${isFirstColumn ? 'border-l' : ''} ${isFirstRow ? 'border-t' : ''}`}
-        />
-      );
+    // Track which grid cells are date cells for border logic
+    const grid: ('empty' | 'date')[] = [];
+    for (let i = 0; i < firstDay; i++) grid.push('empty');
+    for (let day = 1; day <= daysInMonth; day++) grid.push('date');
+    while (grid.length < 42) grid.push('empty');
+
+    for (let i = 0; i < 42; i++) {
+      const rowIdx = Math.floor(i / 7);
+      const colIdx = i % 7;
+      const isFirstColumn = colIdx === 0;
+      const isFirstRow = rowIdx === 0;
+      const cellType = grid[i];
+
+      if (cellType === 'date') {
+        const day = i - firstDay + 1;
+        const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
+        const dayEvents = getEventsForDate(date, allEvents);
+        const isToday = date.toDateString() === today.toDateString();
+        const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+
+        // Add left border if first column OR the cell to the left is empty
+        const leftBorder = isFirstColumn || grid[i - 1] === 'empty';
+        // Add top border if in the first row (i < 7) or if the cell above is empty
+        const topBorder = i < 7 || grid[i - 7] === 'empty';
+
+        days.push(
+          <div
+            key={day}
+            className={`h-16 flex items-center justify-center cursor-pointer relative border-r border-b border-border
+              ${leftBorder ? 'border-l border-border' : ''}
+              ${topBorder ? 'border-t border-border' : ''}
+              ${isSelected ? 'bg-gray-100 dark:bg-muted' : ''}
+              ${isToday ? 'text-blue-400' : ''}
+              hover:bg-white/5 transition-colors`}
+            onClick={() => handleDateClick(date)}
+          >
+            <span className="text-base">{day}</span>
+            {renderEventIndicator(dayEvents.length)}
+          </div>
+        );
+      } else {
+        // Empty cell: no borders
+        days.push(
+          <div
+            key={`empty-${i}`}
+            className="h-16"
+          />
+        );
+      }
     }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
-      const dayEvents = getEventsForDate(date, allEvents);
-      const isToday = date.toDateString() === today.toDateString();
-      const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-      
-      // Calculate column position for border logic
-      const cellIndex = firstDay + day - 1;
-      const isFirstColumn = cellIndex % 7 === 0;
-      const isFirstRow = cellIndex < 7; // First row contains cells 0-6
-
-      days.push(
-        <div
-          key={day}
-          className={`h-16 flex items-center justify-center cursor-pointer relative border-r border-b border-border 
-            ${isFirstColumn ? 'border-l' : ''}
-            ${isFirstRow ? 'border-t' : ''}
-            ${isSelected ? 'bg-white/10' : ''}
-            ${isToday ? 'text-blue-400' : ''}
-            hover:bg-white/5 transition-colors`}
-          onClick={() => handleDateClick(date)}
-        >
-          <span className="text-base">{day}</span>
-          {renderEventIndicator(dayEvents.length)}
-        </div>
-      );
-    }
-
     return days;
   };
 
   const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
-  const selectedDateEvents = selectedDate ? getEventsForDate(selectedDate, events) : [];
+  const selectedDateEvents = filterEventsByDateAndTags(events, selectedDate, selectedTags);
+  const allEventsForSelectedDate = selectedDate ? getEventsForDate(selectedDate, events) : [];
+
+  // Sort by start time
+  selectedDateEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+  const handleTagClick = (tag: Tag) => {
+    let newTags;
+    if (selectedTags.includes(tag)) {
+      newTags = selectedTags.filter(t => t !== tag);
+    } else {
+      newTags = [...selectedTags, tag];
+    }
+    setSelectedTags(newTags);
+  };
+
+  // Tag-related helpers
+  const getTagLabel = (tag: Tag) => TAG_LABELS[tag] || tag;
+  const isValidTag = (tag: string): tag is Tag => (AVAILABLE_TAGS as readonly string[]).includes(tag);
+  const getTagCountForSelectedDate = (tag: Tag) => {
+    if (!selectedDate) return 0;
+    return getEventsForDate(selectedDate, events).filter(event =>
+      event.tags && event.tags.filter(isValidTag).includes(tag)
+    ).length;
+  };
+
+  // Utility: filter events for a date and selected tags
+  function filterEventsByDateAndTags(events: Event[], date: Date | null, selectedTags: Tag[]): Event[] {
+    if (!date) return [];
+    const eventsForDate = getEventsForDate(date, events);
+    if (selectedTags.length === 0) return [];
+    if (selectedTags.length === AVAILABLE_TAGS.length) return eventsForDate;
+    return eventsForDate.filter(event =>
+      event.tags && event.tags.some(tag => selectedTags.includes(tag))
+    );
+  }
+
+  // Simple street address validation (same as EventDetailsModal)
+  const isLikelyStreetAddress = (location: string) => {
+    if (!location) return false;
+    const streetSuffixes = /\b(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Ln|Lane|Way|Court|Pl|Place|Circle|Cir|Pkwy|Parkway|Terrace|Ter|Loop|Trail|Trl|Crescent|Cres|Highway|Hwy)\b/i;
+    return /\d/.test(location) && streetSuffixes.test(location);
+  };
 
   return (
     <div className="w-full">
-      {/* Calendar View - Only when expanded */}
-      {isCalendarExpanded && (
-        <div className="bg-card rounded-lg p-8">
-          {/* Calendar grid - Side by side months */}
-          <div className="grid grid-cols-2 gap-12">
-            {/* First Month */}
-            <div className="space-y-3">
-              {/* Month header with navigation */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={() => navigateMonth('prev')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white hover:text-white border-blue-600 h-8 w-8"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </Button>
-                  
-                  {/* Today button - inline with previous button when needed */}
-                  {isDateBeyondToday() && (
-                    <Button
-                      variant="outline"
-                      onClick={goToToday}
-                      className="bg-blue-600 hover:bg-blue-700 text-white hover:text-white border-blue-600 px-3 h-8 text-sm"
-                    >
-                      Today
-                    </Button>
-                  )}
-                </div>
-                
-                <h2 className="text-xl font-medium text-center flex-1">{getMonthName(currentMonth, true)}</h2>
-                
-                <div className="w-8"></div> {/* Spacer for symmetry */}
-              </div>
-              
-              {/* Days of week header */}
-              <div className="grid grid-cols-7">
-                {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day, index) => (
-                  <div 
-                    key={day} 
-                    className={`h-12 flex items-center justify-center text-sm text-muted-foreground font-medium border-r border-t border-b border-border bg-muted/20 ${index === 0 ? 'border-l' : ''}`}
-                  >
-                    {day}
-                  </div>
-                ))}
-              </div>
-              {/* Days grid */}
-              <div className="grid grid-cols-7">
-                {renderMonth(currentMonth)}
-              </div>
-            </div>
-
-            {/* Second Month */}
-            <div className="space-y-3">
-              {/* Month header with navigation */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-8"></div> {/* Spacer for symmetry */}
-                
-                <h2 className="text-xl font-medium text-center flex-1">{getMonthName(nextMonth, true)}</h2>
-                
+      {/* Calendar View - Always shown */}
+      <div className="bg-card rounded-lg p-8">
+        {/* Calendar grid - Side by side months */}
+        <div className="grid grid-cols-2 gap-12">
+          {/* First Month */}
+          <div className="space-y-3">
+            {/* Month header with navigation */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  onClick={() => navigateMonth('next')}
+                  onClick={() => navigateMonth('prev')}
                   className="bg-blue-600 hover:bg-blue-700 text-white hover:text-white border-blue-600 h-8 w-8"
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
-              </div>
-              
-              {/* Days of week header */}
-              <div className="grid grid-cols-7">
-                {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day, index) => (
-                  <div 
-                    key={day} 
-                    className={`h-12 flex items-center justify-center text-sm text-muted-foreground font-medium border-r border-t border-b border-border bg-muted/20 ${index === 0 ? 'border-l' : ''}`}
+                {/* Today button - inline with previous button when needed */}
+                {isDateBeyondToday() && (
+                  <Button
+                    variant="outline"
+                    onClick={goToToday}
+                    className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 px-3 h-8 text-sm dark:bg-blue-900 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-800"
                   >
-                    {day}
-                  </div>
-                ))}
+                    Today
+                  </Button>
+                )}
               </div>
-              {/* Days grid */}
-              <div className="grid grid-cols-7">
-                {renderMonth(nextMonth)}
-              </div>
+              <h2 className="text-xl font-medium text-center flex-1">{getMonthName(currentMonth, true)}</h2>
+              <div className="w-8"></div> {/* Spacer for symmetry */}
+            </div>
+            {/* Days of week header */}
+            <div className="grid grid-cols-7">
+              {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day, index) => (
+                <div 
+                  key={day} 
+                  className={`h-12 flex items-center justify-center text-sm text-muted-foreground font-medium border-r border-t border-b border-border bg-gray-100 dark:bg-muted ${index === 0 ? 'border-l' : ''}`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+            {/* Days grid */}
+            <div className="grid grid-cols-7 min-h-[24rem]">
+              {renderMonth(currentMonth)}
+            </div>
+          </div>
+          {/* Second Month */}
+          <div className="space-y-3">
+            {/* Month header with navigation */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-8"></div> {/* Spacer for symmetry */}
+              <h2 className="text-xl font-medium text-center flex-1">{getMonthName(nextMonth, true)}</h2>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => navigateMonth('next')}
+                className="bg-blue-600 hover:bg-blue-700 text-white hover:text-white border-blue-600 h-8 w-8"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+            {/* Days of week header */}
+            <div className="grid grid-cols-7">
+              {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day, index) => (
+                <div 
+                  key={day} 
+                  className={`h-12 flex items-center justify-center text-sm text-muted-foreground font-medium border-r border-t border-b border-border bg-gray-100 dark:bg-muted ${index === 0 ? 'border-l' : ''}`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+            {/* Days grid */}
+            <div className="grid grid-cols-7 min-h-[24rem]">
+              {renderMonth(nextMonth)}
             </div>
           </div>
         </div>
-      )}
-
-      {/* Filter Section - Single Line Layout with Calendar Toggle - moved outside selectedDate block */}
-      <div className="mt-6 flex items-center gap-4">
-        {/* Calendar Toggle Button - only show when there are events for the selected date */}
-        {selectedDate && selectedDateEvents.length > 0 && (
-          <Button 
-            variant="link" 
-            className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-2 p-0 h-auto"
-            onClick={() => setIsCalendarExpanded(!isCalendarExpanded)}
-          >
-            {isCalendarExpanded ? (
-              <>
-                <EyeOff className="h-4 w-4" />
-                Hide Calendar
-              </>
-            ) : (
-              <>
-                <CalendarIcon className="h-4 w-4" />
-                Show Calendar
-              </>
-            )}
-          </Button>
-        )}
-
-        {/* Filter Toggle Button */}
-        <Button 
-          variant="link" 
-          className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-2 p-0 h-auto"
-          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-        >
-          <Filter className="h-4 w-4" />
-          {isFilterExpanded ? 'Hide Filters' : `Filter Events (${events.length} of ${allEvents.length} shown)`}
-        </Button>
-
-        {/* Filter Options - Inline when expanded */}
-        {isFilterExpanded && (
-          <div className="flex items-center gap-2">
-            {(['all', 'today', 'week', 'month', 'quarter'] as FilterType[]).map((filter) => (
-              <Button
-                key={filter}
-                variant={currentFilter === filter ? "default" : "outline"}
-                size="sm"
-                onClick={() => onFilterChange(filter)}
-                className={`px-4 py-2 text-sm ${
-                  currentFilter === filter 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white hover:text-white' 
-                    : 'text-muted-foreground hover:text-foreground border-muted-foreground/20'
-                }`}
-              >
-                {getFilterButtonText(filter)} ({getFilterCount(filter)})
-              </Button>
-            ))}
-            
-            {/* Clear Filter Button */}
-            {currentFilter !== 'all' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onFilterChange('all')}
-                className="px-4 py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-              >
-                Clear Filter
-              </Button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Selected date info - only show when a date is selected */}
       {selectedDate && (
         <>
-          <div className="mt-8 flex items-center gap-4">
-            <div className="w-6 h-6 bg-yellow-500 rounded-sm"></div>
+          <div className="mt-4 ml-8 flex items-center gap-4 border-b border-gray-200 dark:border-border pb-4">
+            <CalendarIcon className="w-6 h-6 text-yellow-500" />
             <span className="text-lg text-muted-foreground">{formatSelectedDate(selectedDate)}</span>
-            <span className="text-lg text-muted-foreground ml-6">
-              {selectedDateEvents.length === 0 ? "Nothing's on the schedule" : 
-               `${selectedDateEvents.length} event${selectedDateEvents.length === 1 ? '' : 's'}`}
+            <span className="mx-3 text-gray-300 select-none">|</span>
+            <span className="text-lg text-muted-foreground ml-0">
+              {allEventsForSelectedDate.length === 0 ? "Nothing's on the schedule" :
+                `${allEventsForSelectedDate.length} event${allEventsForSelectedDate.length === 1 ? '' : 's'}`}
             </span>
           </div>
 
+          {/* Tag filter toggle and buttons - moved here */}
+          {selectedDate && allEventsForSelectedDate.length > 0 && (
+            <div className="mt-4 ml-8">
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-2 p-0 h-auto"
+                onClick={() => setShowTagFilters(v => !v)}
+              >
+                <Filter className="h-4 w-4" />
+                {showTagFilters ? 'Hide Filters' : 'Filter'}
+              </Button>
+              {showTagFilters && (
+                <div className="flex flex-wrap items-center gap-2 ml-2 mb-4">
+                  {AVAILABLE_TAGS.map(tag => {
+                    const count = getTagCountForSelectedDate(tag as Tag);
+                    return (
+                      <Button
+                        type="button"
+                        key={tag}
+                        variant={selectedTags.includes(tag as Tag) ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleTagClick(tag as Tag)}
+                        className={`px-3 py-1 text-xs ${selectedTags.includes(tag as Tag) ? 'bg-blue-600 text-white' : 'text-muted-foreground'}`}
+                      >
+                        {getTagLabel(tag as Tag)}{count > 0 ? ` (${count})` : ''}
+                      </Button>
+                    );
+                  })}
+                  {/* Clear filter button */}
+                  {selectedTags.length < AVAILABLE_TAGS.length && (
+                    <Button
+                      type="button"
+                      variant="default" // More prominent style
+                      size="sm"
+                      onClick={() => setSelectedTags([...AVAILABLE_TAGS])}
+                      className="px-3 py-1 text-xs text-white bg-red-500 hover:bg-red-600 border-red-500"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Show events for selected date */}
-          {selectedDateEvents.length > 0 && (
-            <div className="mt-6 space-y-4">
+          {selectedDateEvents.length > 0 ? (
+            <div className="mt-6 space-y-4 ml-8">
               {selectedDateEvents.map((event) => (
                 <div 
                   key={event.id}
-                  className="p-5 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                  className="p-5 bg-gray-100 dark:bg-gray-800 rounded-2xl cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => onEventClick(event)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <h4 className="text-lg font-medium">{event.title}</h4>
+                        <h4 className="text-lg font-medium flex items-center gap-2">
+                          {event.title}
+                          <a
+                            href={`/event/${event.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <Link2 className="h-4 w-4 inline" />
+                          </a>
+                        </h4>
                         
                         {/* Tags */}
                         {event.tags && event.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1">
-                            {event.tags.map((tag) => (
+                            {(event.tags.filter(isValidTag) as Tag[]).map(tag => (
                               <Badge
                                 key={tag}
                                 variant="outline"
-                                className={`${getTagColor(tag)} px-2 py-0 text-xs font-medium`}
+                                className={`${getTagColor(tag as Tag)} px-2 py-0 text-xs font-medium`}
                               >
-                                {tag}
+                                {getTagLabel(tag as Tag)}
                               </Badge>
                             ))}
                           </div>
                         )}
                       </div>
                       
-                      <p className="text-base text-muted-foreground mt-1">
+                      <p className="text-base text-muted-foreground mt-1 mb-4">
                         {event.isAllDay ? 'All day' : 
                          `${event.startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${event.endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                         }
@@ -474,7 +512,7 @@ export function Calendar({
                       
                       {/* Host Organization and Location */}
                       {(event.hostOrganization || event.location) && (
-                        <div className="flex items-center gap-4 mt-2">
+                        <div className="mt-2">
                           {event.hostOrganization && (
                             <div className="flex items-center gap-1">
                               <Building className="h-4 w-4 text-green-500 flex-shrink-0" />
@@ -482,9 +520,20 @@ export function Calendar({
                             </div>
                           )}
                           {event.location && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 mt-3">
                               <MapPin className="h-4 w-4 text-green-500 flex-shrink-0" />
-                              <span className="text-sm text-muted-foreground">{event.location}</span>
+                              {isLikelyStreetAddress(event.location) ? (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-blue-500 hover:underline"
+                                >
+                                  {event.location}
+                                </a>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">{event.location}</span>
+                              )}
                             </div>
                           )}
                         </div>
@@ -533,7 +582,11 @@ export function Calendar({
                 </div>
               ))}
             </div>
-          )}
+          ) : allEventsForSelectedDate.length > 0 ? (
+            <div className="mt-6 text-center text-muted-foreground">
+              No events match your filter. <span className="font-semibold text-blue-600">Clear filters to see all events.</span>
+            </div>
+          ) : null}
 
           <div className="mt-8">
             <Button 

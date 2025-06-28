@@ -8,34 +8,14 @@ import { Button } from './components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu';
 import { Moon, Sun, MoreHorizontal, Info, Settings, Download, Printer, HelpCircle, ExternalLink } from 'lucide-react';
-
-export interface Event {
-  id: string;
-  title: string;
-  startDate: Date;
-  endDate: Date;
-  isAllDay: boolean;
-  attendees: { name: string; avatar: string }[];
-  link?: string;
-  repeat?: {
-    frequency: 'none' | 'daily' | 'weekly' | 'monthly';
-    until?: Date;
-  };
-  notes?: string;
-  hostOrganization?: string;
-  location?: string;
-  tags?: string[];
-}
-
-export type FilterType = 'all' | 'today' | 'week' | 'month' | 'quarter';
-
-// Available tag options
-export const AVAILABLE_TAGS = ['ESO', 'PAID', 'NETWORKING'] as const;
+import type { Event, FilterType } from './types';
+import { AVAILABLE_TAGS } from './types';
+import { getEvents, addEvent as apiAddEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent } from './services/googleSheetApi';
 
 // Sample events for demonstration
 const generateSampleEvents = (): Event[] => [
   {
-    id: 'sample-1',
+    id: '550e8400-e29b-41d4-a716-446655440003',
     title: 'Team Standup',
     startDate: new Date(2025, 5, 26, 9, 0), // June 26, 2025 at 9:00 AM
     endDate: new Date(2025, 5, 26, 9, 30), // June 26, 2025 at 9:30 AM
@@ -56,7 +36,7 @@ const generateSampleEvents = (): Event[] => [
     tags: ['ESO']
   },
   {
-    id: 'sample-2',
+    id: '550e8400-e29b-41d4-a716-446655440004',
     title: 'Product Launch',
     startDate: new Date(2025, 5, 28, 14, 0), // June 28, 2025 at 2:00 PM
     endDate: new Date(2025, 5, 28, 16, 0), // June 28, 2025 at 4:00 PM
@@ -74,7 +54,7 @@ const generateSampleEvents = (): Event[] => [
     tags: ['PAID']
   },
   {
-    id: 'sample-3',
+    id: '550e8400-e29b-41d4-a716-446655440005',
     title: 'Conference Day',
     startDate: new Date(2025, 6, 2, 0, 0), // July 2, 2025 - All day
     endDate: new Date(2025, 6, 2, 23, 59), // July 2, 2025 - All day
@@ -90,7 +70,7 @@ const generateSampleEvents = (): Event[] => [
     tags: ['ESO', 'PAID', 'NETWORKING']
   },
   {
-    id: 'sample-4',
+    id: '550e8400-e29b-41d4-a716-446655440006',
     title: 'Morning Coffee Chat',
     startDate: new Date(2025, 6, 2, 8, 0), // July 2, 2025 at 8:00 AM
     endDate: new Date(2025, 6, 2, 8, 45), // July 2, 2025 at 8:45 AM
@@ -105,7 +85,7 @@ const generateSampleEvents = (): Event[] => [
     tags: ['NETWORKING']
   },
   {
-    id: 'sample-5',
+    id: '550e8400-e29b-41d4-a716-446655440007',
     title: 'Evening Networking Reception',
     startDate: new Date(2025, 6, 2, 18, 30), // July 2, 2025 at 6:30 PM
     endDate: new Date(2025, 6, 2, 20, 0), // July 2, 2025 at 8:00 PM
@@ -137,7 +117,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('EventModal Error:', error, errorInfo);
+    // console.error('EventModal Error:', error, errorInfo);
   }
 
   render() {
@@ -165,14 +145,75 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [events, setEvents] = useState<Event[]>(generateSampleEvents()); // Start with sample events
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date()); // Set to current date by default
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [viewingEvent, setViewingEvent] = useState<Event | null>(null);
-  const [currentFilter, setCurrentFilter] = useState<FilterType>('week');
+  const [currentFilter, setCurrentFilter] = useState<FilterType>('all');
+
+  // URL parameter handling for direct event links
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const eventId = urlParams.get('event');
+    
+    if (eventId) {
+      // Store the event ID to check once events are loaded
+      const checkEventOnceLoaded = () => {
+        if (events.length > 0) {
+          const event = events.find(e => e.id === eventId);
+          if (event) {
+            setViewingEvent(event);
+            setIsEventDetailsOpen(true);
+            // Update URL without triggering a page reload
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('event', eventId);
+            window.history.replaceState({}, '', newUrl.toString());
+          }
+        }
+      };
+      
+      // Check immediately if events are already loaded
+      checkEventOnceLoaded();
+      
+      // Also set up a listener for when events change
+      const interval = setInterval(checkEventOnceLoaded, 100);
+      
+      // Clean up interval after 5 seconds or when events are found
+      setTimeout(() => clearInterval(interval), 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [events]);
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const eventId = urlParams.get('event');
+      
+      if (eventId && events.length > 0) {
+        const event = events.find(e => e.id === eventId);
+        if (event) {
+          setViewingEvent(event);
+          setIsEventDetailsOpen(true);
+        }
+      } else {
+        // No event parameter, close modals
+        setIsEventDetailsOpen(false);
+        setIsEventModalOpen(false);
+        setViewingEvent(null);
+        setEditingEvent(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [events]);
 
   useEffect(() => {
     // Apply theme class to document
@@ -183,14 +224,19 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Debug logging
+  // Fetch events from API on mount
   useEffect(() => {
-    console.log('EventModal state changed:', { 
-      isEventModalOpen, 
-      editingEvent: editingEvent?.id, 
-      selectedDate: selectedDate?.toDateString() 
-    });
-  }, [isEventModalOpen, editingEvent, selectedDate]);
+    setLoading(true);
+    setError(null);
+    getEvents()
+      .then(setEvents)
+      .catch(e => {
+        setError(e.message || 'Failed to load events');
+        // Fallback to sample events if API fails
+        setEvents(generateSampleEvents());
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const filterEvents = (events: Event[], filter: FilterType): Event[] => {
     const now = new Date();
@@ -244,22 +290,26 @@ export default function App() {
   };
 
   const handleNewEvent = (date?: Date) => {
-    console.log('handleNewEvent called with:', date);
-    console.log('About to set modal state...');
+    // console.log('handleNewEvent called with:', date);
+    // console.log('About to set modal state...');
     
     try {
       setSelectedDate(date || null);
       setEditingEvent(null);
       setIsEventModalOpen(true);
-      console.log('Modal state set successfully');
+      // console.log('Modal state set successfully');
     } catch (error) {
-      console.error('Error in handleNewEvent:', error);
+      // console.error('Error in handleNewEvent:', error);
     }
   };
 
   const handleViewEvent = (event: Event) => {
     setViewingEvent(event);
     setIsEventDetailsOpen(true);
+    // Update URL with event parameter
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('event', event.id);
+    window.history.pushState({}, '', newUrl.toString());
   };
 
   const handleEditEventFromDetails = () => {
@@ -267,49 +317,69 @@ export default function App() {
       setEditingEvent(viewingEvent);
       setIsEventDetailsOpen(false);
       setIsEventModalOpen(true);
+      // Remove event parameter from URL since we're switching to edit mode
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('event');
+      window.history.replaceState({}, '', newUrl.toString());
     }
   };
 
-  const handleSaveEvent = (eventData: Omit<Event, 'id'>) => {
-    console.log('Saving event:', eventData);
+  const handleSaveEvent = async (eventData: Omit<Event, 'id'>) => {
+    setLoading(true);
+    setError(null);
     try {
       if (editingEvent) {
-        setEvents(prev => prev.map(e => 
-          e.id === editingEvent.id 
-            ? { ...eventData, id: editingEvent.id }
-            : e
-        ));
+        // Update
+        const updated = await apiUpdateEvent({ ...eventData, id: editingEvent.id });
+        setEvents(prev => prev.map(e => e.id === editingEvent.id ? updated : e));
       } else {
-        const newEvent: Event = {
-          ...eventData,
-          id: Date.now().toString()
-        };
-        setEvents(prev => [...prev, newEvent]);
+        // Add
+        const added = await apiAddEvent(eventData);
+        setEvents(prev => [...prev, added]);
       }
       setIsEventModalOpen(false);
       setEditingEvent(null);
       setSelectedDate(null);
-    } catch (error) {
-      console.error('Error saving event:', error);
+    } catch (e: any) {
+      setError(e.message || 'Failed to save event');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    setEvents(prev => prev.filter(e => e.id !== eventId));
-    setIsEventModalOpen(false);
-    setEditingEvent(null);
+  const handleDeleteEvent = async (eventId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await apiDeleteEvent(eventId);
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+      setIsEventModalOpen(false);
+      setEditingEvent(null);
+    } catch (e: any) {
+      setError(e.message || 'Failed to delete event');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCloseEventDetails = () => {
     setIsEventDetailsOpen(false);
     setViewingEvent(null);
+    // Remove event parameter from URL
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete('event');
+    window.history.replaceState({}, '', newUrl.toString());
   };
 
   const handleCloseEventModal = () => {
-    console.log('Closing event modal');
+    // console.log('Closing event modal');
     setIsEventModalOpen(false);
     setEditingEvent(null);
     setSelectedDate(null);
+    // Remove event parameter from URL if it exists
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete('event');
+    window.history.replaceState({}, '', newUrl.toString());
   };
 
   const handleCloseInfoModal = () => {
@@ -321,8 +391,7 @@ export default function App() {
   };
 
   const handleExportCalendar = () => {
-    // Placeholder for calendar export functionality
-    console.log('Export calendar clicked');
+    // console.log('Export calendar clicked');
   };
 
   const handlePrintCalendar = () => {
@@ -331,23 +400,33 @@ export default function App() {
   };
 
   const handleOpenSettings = () => {
-    // Placeholder for settings functionality
-    console.log('Settings clicked');
+    // console.log('Settings clicked');
   };
 
   const handleOpenHelp = () => {
-    // Placeholder for help functionality
-    console.log('Help clicked');
+    // console.log('Help clicked');
   };
 
   const currentYear = new Date().getFullYear();
 
   return (
     <div className="min-h-screen bg-background text-foreground geometric-bg">
+      {/* Error Toast */}
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded shadow z-50">
+          {error}
+        </div>
+      )}
+      {/* Loading Spinner */}
+      {loading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/10 z-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
+        </div>
+      )}
       {/* Main Title Section - Above main content */}
       <div className="py-16 text-center">
         <div className="flex items-center justify-center gap-4">
-          <h1 className="text-4xl font-medium">Central VA Startup Ecosystem</h1>
+          <h1 className="text-4xl font-medium">Shared Calendar - Central VA ESOs</h1>
           <Button
             variant="ghost"
             size="icon"
@@ -449,16 +528,21 @@ export default function App() {
       <div className="py-8 text-center">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 max-w-5xl mx-auto px-6">
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span>&copy; {currentYear} Central VA Startup Ecosystem. All rights reserved.</span>
+            <span>
+              Powered by{' '}
+              <a href="https://goodfix.co" className="text-blue-400 hover:text-blue-300 underline transition-colors" target="_blank" rel="noopener noreferrer">Good Fix</a>
+              &nbsp;&copy; {currentYear}
+              <span className="ml-4 mr-2 text-gray-300 select-none">|</span>
+            </span>
           </div>
           <div className="flex items-center gap-6 text-sm">
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="#" className="text-blue-400 hover:text-blue-300 underline transition-colors">
               Terms of Service
             </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="#" className="text-blue-400 hover:text-blue-300 underline transition-colors">
               Privacy Policy
             </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="#" className="text-blue-400 hover:text-blue-300 underline transition-colors">
               Cookie Policy
             </a>
           </div>
