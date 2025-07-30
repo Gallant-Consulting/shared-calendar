@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Filter, Link2, Building, MapPin, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -6,20 +6,16 @@ import type { Event, FilterType } from '../types';
 
 interface EventListCompactProps {
   events: Event[];
-  allEvents: Event[];
   onEventClick?: (event: Event) => void;
   currentFilter: FilterType;
-  onFilterChange: (filter: FilterType) => void;
   maxEvents?: number;
   showFilters?: boolean;
 }
 
 export function EventListCompact({ 
   events, 
-  allEvents, 
   onEventClick,
   currentFilter, 
-  onFilterChange,
   maxEvents = 5,
   showFilters = true
 }: EventListCompactProps) {
@@ -123,7 +119,7 @@ export function EventListCompact({
                   key={filter}
                   variant={currentFilter === filter ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => onFilterChange(filter)}
+                  onClick={() => {}}
                   className={`px-2 py-1 text-xs h-auto ${
                     currentFilter === filter 
                       ? 'bg-blue-600 hover:bg-blue-700 text-white hover:text-white' 
@@ -230,7 +226,7 @@ export function EventListCompact({
                 variant="ghost"
                 size="sm"
                 className="text-blue-500 hover:text-blue-600 text-sm"
-                onClick={() => onFilterChange('all')}
+                onClick={() => {}}
               >
                 View all {sortedEvents.length} events
               </Button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Filter, Link2, FileText, Building, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -20,7 +20,7 @@ export function EventList({
   onEventClick, 
   currentFilter, 
   onFilterChange,
-  showHeader = true
+
 }: EventListProps) {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);

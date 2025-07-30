@@ -116,7 +116,7 @@ export async function getEvents() {
   // })));
 
   // Map rows to event objects
-  return approvedRows.map((row: any, idx: number) => {
+  return approvedRows.map((row: any) => {
     // Parse dates properly to avoid timezone issues
     const parseDate = (dateStr: string) => {
       if (!dateStr) return new Date();

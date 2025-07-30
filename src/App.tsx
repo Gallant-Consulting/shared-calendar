@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu';
 import { Moon, Sun, MoreHorizontal, Info, Settings as SettingsIcon, Download, Printer, HelpCircle, ExternalLink, Calendar as CalendarIcon, List } from 'lucide-react';
 import type { Event, FilterType } from './types';
-import { AVAILABLE_TAGS } from './types';
 import { getEvents, addEvent as apiAddEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent } from './services/googleSheetApi';
 import { getSettings, updateSettings, DEFAULT_SETTINGS, type Settings } from './services/settingsApi';
 
@@ -119,7 +118,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(_error: Error, _errorInfo: React.ErrorInfo) {
     // console.error('EventModal Error:', error, errorInfo);
   }
 
@@ -354,17 +353,7 @@ export default function App() {
     window.history.pushState({}, '', newUrl.toString());
   };
 
-  const handleEditEventFromDetails = () => {
-    if (viewingEvent) {
-      setEditingEvent(viewingEvent);
-      setIsEventDetailsOpen(false);
-      setIsEventModalOpen(true);
-      // Remove event parameter from URL since we're switching to edit mode
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('event');
-      window.history.replaceState({}, '', newUrl.toString());
-    }
-  };
+
 
   const handleSaveEvent = async (eventData: Omit<Event, 'id'>) => {
     setLoading(true);
@@ -605,7 +594,6 @@ export default function App() {
               onEventClick={handleViewEvent}
               onNewEventClick={handleNewEvent}
               currentFilter={currentFilter}
-              onFilterChange={handleFilterChange}
             />
           ) : (
             <EventList
@@ -679,7 +667,6 @@ export default function App() {
       <EventDetailsModal
         isOpen={isEventDetailsOpen}
         onClose={handleCloseEventDetails}
-        onEdit={handleEditEventFromDetails}
         event={viewingEvent}
       />
 

@@ -1,19 +1,17 @@
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, MapPin, Users, Link2, Building, FileText, Edit, Trash2, MoreHorizontal, XIcon } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Link2, Building, FileText } from 'lucide-react';
 import type { Event } from '../types';
 
 interface EventDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEdit: () => void;
   event: Event | null;
 }
 
-export function EventDetailsModal({ isOpen, onClose, onEdit, event }: EventDetailsModalProps) {
+export function EventDetailsModal({ isOpen, onClose, event }: EventDetailsModalProps) {
   if (!event) return null;
 
   const formatDate = (date: Date) => {

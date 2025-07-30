@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { EventList } from './components/EventList';
 import { EventDetailsModal } from './components/EventDetailsModal';
 import type { Event, FilterType } from './types';
-import { AVAILABLE_TAGS } from './types';
 
 // Same sample events as main app for consistency
 const generateSampleEvents = (): Event[] => [
@@ -159,10 +158,7 @@ export default function EmbedApp() {
     setViewingEvent(null);
   };
 
-  const handleEditEventFromDetails = () => {
-    // For embed version, we'll just close the modal since we don't have editing capability
-    handleCloseEventDetails();
-  };
+
 
   const handleFilterChange = (filter: FilterType) => {
     setCurrentFilter(filter);
@@ -184,7 +180,6 @@ export default function EmbedApp() {
       <EventDetailsModal
         isOpen={isEventDetailsOpen}
         onClose={handleCloseEventDetails}
-        onEdit={handleEditEventFromDetails}
         event={viewingEvent}
       />
     </div>

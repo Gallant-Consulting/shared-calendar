@@ -7,7 +7,7 @@ interface Settings {
   footer_links: Array<{ text: string; url: string }>;
 }
 
-const SETTINGS_SHEET_NAME = 'Settings';
+
 const NOCODE_API_ENDPOINT = import.meta.env.VITE_NOCODE_API_ENDPOINT;
 
 // Default settings if none are found

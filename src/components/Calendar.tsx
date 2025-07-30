@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Link2, FileText, ChevronUp, ChevronDown, Filter, Calendar as CalendarIcon, EyeOff, Building, MapPin } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Link2, FileText, Filter, Calendar as CalendarIcon, Building, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { AVAILABLE_TAGS, TAG_LABELS } from '../types';
@@ -12,7 +12,6 @@ interface CalendarProps {
   onEventClick: (event: Event) => void;
   onNewEventClick: (date: Date) => void;
   currentFilter: FilterType;
-  onFilterChange: (filter: FilterType) => void;
 }
 
 export function Calendar({ 
@@ -21,8 +20,7 @@ export function Calendar({
   onDateSelect, 
   onEventClick, 
   onNewEventClick, 
-  currentFilter, 
-  onFilterChange 
+  currentFilter
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date(2025, 5, 1)); // June 2025
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date()); // Initialize with today's date
@@ -128,57 +126,7 @@ export function Calendar({
     }
   };
 
-  const getFilterCount = (filter: FilterType) => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    switch (filter) {
-      case 'today':
-        return allEvents.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate.getTime() === todayStart.getTime();
-        }).length;
-      
-      case 'week':
-        const weekStart = new Date(todayStart);
-        weekStart.setDate(todayStart.getDate() - todayStart.getDay());
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        return allEvents.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate >= weekStart && eventDate <= weekEnd;
-        }).length;
-      
-      case 'month':
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        return allEvents.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate >= monthStart && eventDate <= monthEnd;
-        }).length;
-      
-      case 'nextMonth':
-        const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-        return allEvents.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate >= nextMonthStart && eventDate <= nextMonthEnd;
-        }).length;
-      
-      case 'quarter':
-        const quarter = Math.floor(now.getMonth() / 3);
-        const quarterStart = new Date(now.getFullYear(), quarter * 3, 1);
-        const quarterEnd = new Date(now.getFullYear(), quarter * 3 + 3, 0);
-        return allEvents.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate >= quarterStart && eventDate <= quarterEnd;
-        }).length;
-      
-      case 'all':
-      default:
-        return allEvents.length;
-    }
-  };
+
 
   const getTagColor = (tag: string) => {
     switch (tag) {
@@ -239,10 +187,8 @@ export function Calendar({
     while (grid.length < 42) grid.push('empty');
 
     for (let i = 0; i < 42; i++) {
-      const rowIdx = Math.floor(i / 7);
       const colIdx = i % 7;
       const isFirstColumn = colIdx === 0;
-      const isFirstRow = rowIdx === 0;
       const cellType = grid[i];
 
       if (cellType === 'date') {
