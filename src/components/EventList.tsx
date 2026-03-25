@@ -1,9 +1,16 @@
 import { useState } from 'react';
-import { Filter, Link2, FileText, Building, MapPin } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import type { Event, FilterType, Tag } from '../types';
 import { AVAILABLE_TAGS, TAG_LABELS } from '../types';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from './ui/carousel';
+import { ScheduleEventCard } from './ScheduleEventCard';
 
 interface EventListProps {
   events: Event[];
@@ -120,40 +127,8 @@ export function EventList({
     }
   };
 
-  const getTagColor = (tag: string) => {
-    switch (tag) {
-      case 'ESO':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800';
-      case 'PAID':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800';
-      case 'NETWORKING':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 border-gray-200 dark:border-gray-800';
-    }
-  };
-
-  const isLikelyStreetAddress = (location: string) => {
-    if (!location) return false;
-    const streetSuffixes = /\b(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Ln|Lane|Way|Court|Pl|Place|Circle|Cir|Pkwy|Parkway|Terrace|Ter|Loop|Trail|Trl|Crescent|Cres|Highway|Hwy)\b/i;
-    return /\d/.test(location) && streetSuffixes.test(location);
-  };
-
-  const formatEventDate = (event: Event) => {
-    const dateStr = event.startDate.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-    
-    if (event.isAllDay) {
-      return `${dateStr} - All day`;
-    }
-    
-    const startTime = event.startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const endTime = event.endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return `${dateStr}, ${startTime} - ${endTime}`;
-  };
+  const formatScheduleHeaderDate = (date: Date) =>
+    date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 
   const sortedEvents = [...filteredEvents].sort((a, b) => {
     // First, sort by date
@@ -173,7 +148,7 @@ export function EventList({
   });
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-6xl">
       {/* Filter Section */}
       {allEvents.length > 1 && (
         <div className="mb-6 flex items-center gap-4 flex-wrap">
@@ -258,124 +233,44 @@ export function EventList({
         </div>
       )}
 
-      {/* Events List */}
+      {/* Schedule carousel */}
       {sortedEvents.length > 0 ? (
-        <div className="space-y-4">
-          {sortedEvents.map((event) => (
-            <div 
-              key={event.id}
-              className="p-5 bg-gray-100 dark:bg-gray-800 rounded-2xl cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={() => onEventClick(event)}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <h3 className="text-lg font-medium flex items-center gap-2">
-                      {event.title}
-                      <a
-                        href={`?event=${event.id}`}
-                        className="text-blue-400 hover:text-blue-300"
-                        onClick={e => e.stopPropagation()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Link2 className="h-4 w-4 inline" />
-                      </a>
-                    </h3>
-                    
-                    {/* Tags */}
-                    {event.tags && event.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {event.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="outline"
-                            className={`${getTagColor(tag)} px-2 py-0 text-xs font-medium`}
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <p className="text-base text-muted-foreground mb-2">
-                    {formatEventDate(event)}
-                  </p>
-                  
-                  {/* Host Organization and Location */}
-                  {(event.hostOrganization || event.location) && (
-                    <div className="mt-2">
-                      {event.hostOrganization && (
-                        <div className="flex items-center gap-1 mb-2">
-                          <Building className="h-4 w-4 text-green-500 flex-shrink-0" />
-                          <span className="text-sm text-muted-foreground">{event.hostOrganization}</span>
-                        </div>
-                      )}
-                      {event.location && (
-                        <div className="flex items-center gap-1 mb-2">
-                          <MapPin className="h-4 w-4 text-purple-500 flex-shrink-0" />
-                          {isLikelyStreetAddress(event.location) ? (
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-blue-500 hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {event.location}
-                            </a>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">{event.location}</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Event Link */}
-                  {event.link && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <Link2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                      <a 
-                        href={event.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-400 hover:text-blue-300 hover:underline truncate"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {event.link}
-                      </a>
-                    </div>
-                  )}
-                  
-                  {/* Event Notes/Description */}
-                  {event.notes && (
-                    <div className="flex items-start gap-2">
-                      <FileText className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {event.notes}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-                  {event.attendees.slice(0, 3).map((attendee, index) => (
-                    <div key={index} className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-sm text-white">
-                      {attendee.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                  ))}
-                  {event.attendees.length > 3 && (
-                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-sm">
-                      +{event.attendees.length - 3}
-                    </div>
-                  )}
-                </div>
-              </div>
+        <Carousel
+          opts={{ align: 'start', slidesToScroll: 1 }}
+          className="w-full"
+        >
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                Schedule
+                <span className="font-normal text-muted-foreground">
+                  {' '}
+                  — {formatScheduleHeaderDate(sortedEvents[0].startDate)}
+                </span>
+              </h2>
             </div>
-          ))}
-        </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <CarouselPrevious
+                variant="outline"
+                className="static inset-auto left-auto right-auto top-auto size-9 translate-x-0 translate-y-0 rounded-md border bg-background shadow-sm"
+              />
+              <CarouselNext
+                variant="outline"
+                className="static inset-auto left-auto right-auto top-auto size-9 translate-x-0 translate-y-0 rounded-md border bg-background shadow-sm"
+              />
+            </div>
+          </div>
+          <CarouselContent className="-ml-2 md:-ml-4">
+            {sortedEvents.map((event) => (
+              <CarouselItem
+                key={event.id}
+                className="pl-2 md:basis-[45%] md:pl-4 lg:basis-[32%] basis-[85%]"
+              >
+                <ScheduleEventCard event={event} onEventClick={onEventClick} />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
       ) : (
         <div className="text-center py-12 bg-card rounded-lg border border-border">
           <p className="text-lg text-muted-foreground mb-2">No events found</p>

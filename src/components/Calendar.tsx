@@ -22,7 +22,10 @@ export function Calendar({
   onNewEventClick, 
   currentFilter
 }: CalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2025, 5, 1)); // June 2025
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date()); // Initialize with today's date
   const [selectedTags, setSelectedTags] = useState<Tag[]>([...AVAILABLE_TAGS]);
   const [showTagFilters, setShowTagFilters] = useState(false);

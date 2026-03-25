@@ -26,27 +26,34 @@ A shared event calendar for the Central Virginia startup ecosystem (ESOs - Entre
 
 ## Services & Connections
 
-### Backend: NocodeAPI + Google Sheets
+### Backend: Airtable via API Proxy
 
-The application uses **NocodeAPI** as middleware to connect to **Google Sheets** as the data backend and admin panel. There is no custom backend server.
+The application now uses an **API proxy layer** to connect to **Airtable** securely. Airtable secrets are server-only and never exposed to the browser bundle.
 
-**API Services:**
+**Frontend service modules:**
 
-- `src/services/googleSheetApi.ts` — Events CRUD (get, add, update, delete)
-- `src/services/settingsApi.ts` — Site settings management
+- `src/services/googleSheetApi.ts` — Events CRUD service contract used by UI (internals now call `/api/events`)
+- `src/services/settingsApi.ts` — Settings service contract used by UI (internals now call `/api/settings`)
+
+**Proxy/API modules:**
+
+- `api/events.ts` — Airtable-backed events endpoint (`GET/POST/PUT/DELETE`)
+- `api/settings.ts` — Airtable-backed settings endpoint (`GET/PUT`)
+- `api/_lib/airtable.ts` — Airtable HTTP helpers + env validation
+- `api/_lib/mappers.ts` — Airtable field mapping and normalization
 
 **Data Flow:**
 
-1. App fetches events and settings from API services on mount
-2. Services make REST calls to the NocodeAPI endpoint
-3. NocodeAPI reads/writes to the linked Google Sheet
-4. Only events with `status === 'approved'` are displayed
-5. If the API is unavailable, sample data is used as fallback (for now)
+1. App fetches events and settings through frontend service modules.
+2. Services call same-origin proxy routes (`/api/events`, `/api/settings`).
+3. Proxy authenticates to Airtable using `AIRTABLE_PAT` and `AIRTABLE_BASE_ID`.
+4. Events are mapped from Airtable `Events` table and filtered to approved statuses.
+5. Settings are mapped from Airtable `app_settings` table.
 
-**Google Sheets Structure:**
+**Airtable tables used by runtime:**
 
-- **Event_Data** sheet — Columns: status, tags, id, title, startDate, endDate, isAllDay, repeat, repeatUntil, hostOrganization, isPaid, cost, location, notes, link, image, eventUrl
-- **settings** sheet — Key/value pairs: site_title, site_description, contact_email, tags, tag_labels, footer_links
+- **Events** — `Event ID`, `Status`, `Title`, `Start Date`, `End Date`, `Tags`, `All Day Event`, `Repeat Frequency`, `Repeat Until`, `Host Group`, `Is Paid`, `Cost`, `Location`, `Notes`, `Payment Link`, `Image`, `Event URL`
+- **app_settings** — `site_title`, `site_description`, `contact_email`, `tags`, `tag_labels`
 
 ## How to Run
 
@@ -54,8 +61,8 @@ The application uses **NocodeAPI** as middleware to connect to **Google Sheets**
 
 - Node.js (latest LTS recommended)
 - npm or yarn
-- NocodeAPI account ([nocodeapi.com](https://nocodeapi.com))
-- Google Sheet with the required structure
+- Airtable base with required tables/fields
+- Deployment target that supports API routes/serverless functions
 
 ### Installation
 
@@ -77,11 +84,13 @@ The application uses **NocodeAPI** as middleware to connect to **Google Sheets**
 
 4. Edit `.env` with your values:
    ```
-   VITE_NOCODE_API_ENDPOINT=https://v1.nocodeapi.com/YOUR_USER/YOUR_API/SHEET_ID
+   AIRTABLE_PAT=pat_xxx
+   AIRTABLE_BASE_ID=appsiGlVk94JBwqHG
+   VITE_API_BASE_URL=
    VITE_ADMIN_PASSWORD=your-secure-password
    ```
 
-5. Set up your Google Sheet with `Event_Data` and `settings` tabs, and connect it via NocodeAPI.
+5. Ensure your Airtable base has `Events` and `app_settings` tables with the mapped fields.
 
 6. Start the development server:
    ```bash
@@ -103,7 +112,9 @@ The application uses **NocodeAPI** as middleware to connect to **Google Sheets**
 
 | Variable | Description |
 |----------|-------------|
-| `VITE_NOCODE_API_ENDPOINT` | NocodeAPI endpoint URL for your Google Sheets integration |
+| `AIRTABLE_PAT` | Airtable Personal Access Token (server-only) |
+| `AIRTABLE_BASE_ID` | Airtable base ID (server-only) |
+| `VITE_API_BASE_URL` | Optional frontend API base URL override (defaults to same-origin) |
 | `VITE_ADMIN_PASSWORD` | Password required to access the Settings modal |
 
 ## Project Structure
@@ -123,8 +134,15 @@ src/
 │   ├── FloatingNewEventButton.tsx
 │   └── ui/                       # shadcn/ui components
 └── services/
-    ├── googleSheetApi.ts  # Events API
-    └── settingsApi.ts     # Settings API
+    ├── googleSheetApi.ts  # Events service (calls /api/events)
+    └── settingsApi.ts     # Settings service (calls /api/settings)
+
+api/
+├── events.ts              # Airtable events proxy endpoint
+├── settings.ts            # Airtable settings proxy endpoint
+└── _lib/
+    ├── airtable.ts        # Airtable HTTP/env helpers
+    └── mappers.ts         # Airtable <-> app mapping logic
 ```
 
 ## Data Architecture
@@ -142,12 +160,12 @@ Events include: id, title, startDate, endDate, isAllDay, attendees, link, repeat
 
 ## Deployment
 
-The app builds to static files and can be hosted on:
+Deploy on a platform that supports API routes/functions (for the proxy), such as:
 
-- Vercel (probably this one)
-- Railway
+- Vercel
+- Railway (with server runtime)
 
-Configure `VITE_NOCODE_API_ENDPOINT` and `VITE_ADMIN_PASSWORD` in your hosting platform's environment settings. The NocodeAPI endpoint must be reachable from the deployed site.
+Configure `AIRTABLE_PAT`, `AIRTABLE_BASE_ID`, and `VITE_ADMIN_PASSWORD` in host environment settings. `AIRTABLE_PAT` and `AIRTABLE_BASE_ID` must be server-only.
 
 ## Related Documentation
 
