@@ -71,15 +71,28 @@ export function ScheduleEventCard({ event, onEventClick }: ScheduleEventCardProp
     <div
       onClick={() => onEventClick(event)}
       className={cn(
-        'flex h-full cursor-pointer flex-col rounded-xl border bg-card p-4 text-left shadow-sm transition-shadow hover:shadow-md',
+        'flex h-full cursor-pointer flex-col rounded-md border bg-card p-5 text-left shadow-sm transition-shadow hover:shadow-md',
         'border-l-4',
         getAccentBorderClass(event),
       )}
     >
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {formatTimeRange(event)}
-        </p>
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {formatTimeRange(event)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {event.startDate.toLocaleDateString('en-US', { weekday: 'short' })}
+          </p>
+        </div>
+        <div className="mr-2 text-right">
+          <div className="text-4xl font-light leading-none text-fuchsia-600">
+            {event.startDate.getDate()}
+          </div>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-fuchsia-600">
+            {event.startDate.toLocaleDateString('en-US', { month: 'long' })}
+          </div>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

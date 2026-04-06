@@ -1,18 +1,15 @@
 import './styles/globals.css'
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Calendar } from './components/Calendar';
 import { EventList } from './components/EventList';
-import { FloatingNewEventButton } from './components/FloatingNewEventButton';
 import { EventModal } from './components/EventModal';
 import { EventDetailsModal } from './components/EventDetailsModal';
 import { SettingsModal } from './components/SettingsModal';
-import { Button } from './components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu';
-import { Moon, Sun, MoreHorizontal, Info, Settings as SettingsIcon, Download, Printer, HelpCircle, ExternalLink, Calendar as CalendarIcon, List } from 'lucide-react';
-import type { Event, FilterType } from './types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './components/ui/dialog';
+import type { Event } from './types';
 import { getEvents, addEvent as apiAddEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent } from './services/googleSheetApi';
 import { getSettings, updateSettings, DEFAULT_SETTINGS, type Settings } from './services/settingsApi';
+import { eventMatchesQuery } from './utils/eventSearch';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error?: Error}> {
@@ -53,59 +50,50 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 }
 
 export default function App() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Keep dark mode behavior but hide the toggle icon.
+    // We still follow OS/system preference so dark mode remains usable.
+    return typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false;
+  });
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [viewingEvent, setViewingEvent] = useState<Event | null>(null);
-  const [currentFilter, setCurrentFilter] = useState<FilterType>('all');
-  const [viewSwitch, setViewSwitch] = useState<'calendar' | 'list'>('calendar');
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(20);
+  const [activeMonth, setActiveMonth] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
-  // URL parameter handling for view switching and direct event links
+  // URL parameter handling for direct event links
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const eventId = urlParams.get('event');
-    const view = urlParams.get('view') as 'calendar' | 'list' | null;
-    
-    // Handle view switching
-    if (view === 'list') {
-      setViewSwitch('list');
-    } else if (view === 'calendar' || !view) {
-      setViewSwitch('calendar');
-    }
-    
+
     if (eventId) {
-      // Store the event ID to check once events are loaded
       const checkEventOnceLoaded = () => {
         if (events.length > 0) {
           const event = events.find(e => e.id === eventId);
           if (event) {
             setViewingEvent(event);
             setIsEventDetailsOpen(true);
-            // Update URL without triggering a page reload
             const newUrl = new URL(window.location.href);
             newUrl.searchParams.set('event', eventId);
             window.history.replaceState({}, '', newUrl.toString());
           }
         }
       };
-      
-      // Check immediately if events are already loaded
+
       checkEventOnceLoaded();
-      
-      // Also set up a listener for when events change
       const interval = setInterval(checkEventOnceLoaded, 100);
-      
-      // Clean up interval after 5 seconds or when events are found
       setTimeout(() => clearInterval(interval), 5000);
-      
+
       return () => clearInterval(interval);
     }
   }, [events]);
@@ -115,15 +103,7 @@ export default function App() {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const eventId = urlParams.get('event');
-      const view = urlParams.get('view') as 'calendar' | 'list' | null;
-      
-      // Handle view switching
-      if (view === 'list') {
-        setViewSwitch('list');
-      } else if (view === 'calendar' || !view) {
-        setViewSwitch('calendar');
-      }
-      
+
       if (eventId && events.length > 0) {
         const event = events.find(e => e.id === eventId);
         if (event) {
@@ -152,6 +132,23 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Follow system dark mode preference (toggle icon intentionally hidden).
+  useEffect(() => {
+    const mql = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!mql) return;
+
+    const handleChange = () => setIsDarkMode(mql.matches);
+    handleChange();
+
+    if (mql.addEventListener) mql.addEventListener('change', handleChange);
+    else mql.addListener(handleChange);
+
+    return () => {
+      if (mql.removeEventListener) mql.removeEventListener('change', handleChange);
+      else mql.removeListener(handleChange);
+    };
+  }, []);
+
   // Fetch events from API on mount
   useEffect(() => {
     setLoading(true);
@@ -177,78 +174,34 @@ export default function App() {
       });
   }, []);
 
-  const filterEvents = (events: Event[], filter: FilterType): Event[] => {
+  const upcomingEvents = useMemo(() => {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    switch (filter) {
-      case 'today':
-        return events.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate.getTime() === today.getTime();
-        });
-      
-      case 'week':
-        const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6); // End of week (Saturday)
-        return events.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate >= weekStart && eventDate <= weekEnd;
-        });
-      
-      case 'month':
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        return events.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate >= monthStart && eventDate <= monthEnd;
-        });
-      
-      case 'nextMonth':
-        const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-        return events.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate >= nextMonthStart && eventDate <= nextMonthEnd;
-        });
-      
-      case 'quarter':
-        const quarter = Math.floor(now.getMonth() / 3);
-        const quarterStart = new Date(now.getFullYear(), quarter * 3, 1);
-        const quarterEnd = new Date(now.getFullYear(), quarter * 3 + 3, 0);
-        return events.filter(event => {
-          const eventDate = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), event.startDate.getDate());
-          return eventDate >= quarterStart && eventDate <= quarterEnd;
-        });
-      
-      case 'all':
-      default:
-        return events;
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const future = events.filter((event) => event.endDate >= todayStart);
+    const base = future.length > 0 ? future : events;
+    return [...base].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  }, [events]);
+
+  const filteredEvents = useMemo(() => {
+    if (!searchQuery.trim()) return upcomingEvents;
+    return events
+      .filter((event) => eventMatchesQuery(event, searchQuery))
+      .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  }, [events, upcomingEvents, searchQuery]);
+
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [searchQuery, events]);
+
+  useEffect(() => {
+    if (filteredEvents.length > 0) {
+      const first = filteredEvents[0].startDate;
+      setActiveMonth(new Date(first.getFullYear(), first.getMonth(), 1));
     }
-  };
+  }, [filteredEvents]);
 
-  const filteredEvents = filterEvents(events, currentFilter);
-
-  const handleDateSelect = (date: Date) => {
-    // Just update the selected date - don't open modal
-    setSelectedDate(date);
-  };
-
-  const handleNewEvent = (date?: Date) => {
-    // console.log('handleNewEvent called with:', date);
-    // console.log('About to set modal state...');
-    
-    try {
-      setSelectedDate(date || null);
-      setEditingEvent(null);
-      setIsEventModalOpen(true);
-      // console.log('Modal state set successfully');
-    } catch (error) {
-      // console.error('Error in handleNewEvent:', error);
-    }
-  };
+  const visibleEvents = filteredEvents.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredEvents.length;
 
   const handleViewEvent = (event: Event) => {
     setViewingEvent(event);
@@ -258,9 +211,6 @@ export default function App() {
     newUrl.searchParams.set('event', event.id);
     window.history.pushState({}, '', newUrl.toString());
   };
-
-
-
   const handleSaveEvent = async (eventData: Omit<Event, 'id'>) => {
     setLoading(true);
     setError(null);
@@ -309,47 +259,12 @@ export default function App() {
   };
 
   const handleCloseEventModal = () => {
-    // console.log('Closing event modal');
     setIsEventModalOpen(false);
     setEditingEvent(null);
     setSelectedDate(null);
-    // Remove event parameter from URL if it exists
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.delete('event');
     window.history.replaceState({}, '', newUrl.toString());
-  };
-
-  const handleCloseInfoModal = () => {
-    setIsInfoModalOpen(false);
-  };
-
-  const handleFilterChange = (filter: FilterType) => {
-    setCurrentFilter(filter);
-  };
-
-  const handleViewSwitch = (view: 'calendar' | 'list') => {
-    setViewSwitch(view);
-    // Update URL with view parameter
-    const newUrl = new URL(window.location.href);
-    if (view === 'calendar') {
-      newUrl.searchParams.delete('view');
-    } else {
-      newUrl.searchParams.set('view', view);
-    }
-    window.history.pushState({}, '', newUrl.toString());
-  };
-
-  const handleExportCalendar = () => {
-    // console.log('Export calendar clicked');
-  };
-
-  const handlePrintCalendar = () => {
-    // Placeholder for print functionality
-    window.print();
-  };
-
-  const handleOpenSettings = () => {
-    setIsSettingsModalOpen(true);
   };
 
   const handleSaveSettings = async (newSettings: Settings) => {
@@ -362,11 +277,33 @@ export default function App() {
     }
   };
 
-  const handleOpenHelp = () => {
-    // console.log('Help clicked');
+  const currentYear = new Date().getFullYear();
+
+  const shouldHideFooterLink = (text: string) => {
+    const normalized = text.trim().toLowerCase();
+    return (
+      normalized === 'terms of service' ||
+      normalized === 'privacy policy' ||
+      normalized === 'cookie policy' ||
+      normalized === 'tos' ||
+      normalized === 'privacy' ||
+      normalized === 'cookie'
+    );
   };
 
-  const currentYear = new Date().getFullYear();
+  const visibleFooterLinks = settings.footer_links.filter((link) => !shouldHideFooterLink(link.text));
+
+  const handleLoadMore = () => {
+    setVisibleCount((count) => Math.min(count + 20, filteredEvents.length));
+  };
+
+  const handleTopVisibleMonthChange = (month: Date) => {
+    setActiveMonth(new Date(month.getFullYear(), month.getMonth(), 1));
+  };
+
+  const handleCalendarMonthChange = (month: Date) => {
+    setActiveMonth(new Date(month.getFullYear(), month.getMonth(), 1));
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground geometric-bg">
@@ -382,135 +319,36 @@ export default function App() {
           <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-solid"></div>
         </div>
       )}
-      {/* Main Title Section - Above main content */}
-      <div className="py-16 text-center">
-        <div className="flex items-center justify-center gap-4">
-          <h1 className="text-4xl font-medium">{settings.site_title}</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsInfoModalOpen(true)}
-            className="h-10 w-10 text-muted-foreground hover:text-foreground"
-          >
-            <Info className="h-6 w-6" />
-          </Button>
-        </div>
-      </div>
 
-      {/* Calendar Content */}
-      <div className="flex justify-center px-6 pb-8">
-        <div className="w-full max-w-5xl p-10 rounded-lg border border-border bg-card/95 backdrop-blur-sm">
-          {/* Header within container - simplified */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <FloatingNewEventButton onClick={() => handleNewEvent()} />
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {/* View Toggle Buttons */}
-              <div className="flex items-center gap-2 border border-border rounded-lg p-1 bg-muted/50">
-                <Button
-                  variant={viewSwitch === 'calendar' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => handleViewSwitch('calendar')}
-                  className={`flex items-center gap-2 px-3 py-1 h-auto ${
-                    viewSwitch === 'calendar' 
-                      ? 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-800' 
-                      : ''
-                  }`}
-                >
-                  <CalendarIcon className="h-4 w-4" />
-                  Calendar
-                </Button>
-                <Button
-                  variant={viewSwitch === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => handleViewSwitch('list')}
-                  className={`flex items-center gap-2 px-3 py-1 h-auto ${
-                    viewSwitch === 'list' 
-                      ? 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-800' 
-                      : ''
-                  }`}
-                >
-                  <List className="h-4 w-4" />
-                  List
-                </Button>
-              </div>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsDarkMode(!isDarkMode)}
-              >
-                {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </Button>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={handleOpenSettings}>
-                    <SettingsIcon className="h-4 w-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleExportCalendar}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Calendar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handlePrintCalendar}>
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print Calendar
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleOpenHelp}>
-                    <HelpCircle className="h-4 w-4 mr-2" />
-                    Help & Support
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsInfoModalOpen(true)}>
-                    <Info className="h-4 w-4 mr-2" />
-                    About
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <a 
-                      href="https://github.com" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View on GitHub
-                    </a>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+      <div className="flex justify-center px-6 pt-10 pb-8">
+        <div className="w-full max-w-6xl p-6">
+          <div className="mb-6 pb-4">
+            <h1 className="text-4xl font-semibold tracking-tight">
+              Central VA <span className="text-fuchsia-600">Events</span>
+            </h1>
           </div>
 
-          {/* Main Content - Calendar or List View */}
-          {viewSwitch === 'calendar' ? (
-            <Calendar 
-              events={filteredEvents}
-              allEvents={events}
-              onDateSelect={handleDateSelect}
-              onEventClick={handleViewEvent}
-              onNewEventClick={handleNewEvent}
-              currentFilter={currentFilter}
-            />
-          ) : (
-            <EventList
-              events={filteredEvents}
-              allEvents={events}
-              onEventClick={handleViewEvent}
-              currentFilter={currentFilter}
-              onFilterChange={handleFilterChange}
-              showHeader={true}
-            />
-          )}
+          <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <div className="lg:sticky lg:top-6 lg:self-start">
+              <Calendar
+                events={filteredEvents}
+                displayMonth={activeMonth}
+                onDisplayMonthChange={handleCalendarMonthChange}
+              />
+            </div>
+
+            <div>
+              <EventList
+                events={visibleEvents}
+                onEventClick={handleViewEvent}
+                searchQuery={searchQuery}
+                onSearchQueryChange={setSearchQuery}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
+                onTopVisibleMonthChange={handleTopVisibleMonthChange}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -520,13 +358,13 @@ export default function App() {
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span>
               Powered by{' '}
-              <a href="https://goodfix.co" className="text-blue-400 hover:text-blue-300 underline transition-colors" target="_blank" rel="noopener noreferrer">Good Fix</a>
+              <a href="https://goodfix.tech" className="text-blue-400 hover:text-blue-300 underline transition-colors" target="_blank" rel="noopener noreferrer">Good Fix</a>
               &nbsp;&copy; {currentYear}
-              <span className="ml-4 mr-2 text-gray-300 select-none">|</span>
+              
             </span>
           </div>
           <div className="flex items-center gap-6 text-sm">
-            {settings.footer_links.map((link, index) => (
+            {visibleFooterLinks.map((link, index) => (
               <a 
                 key={index}
                 href={link.url} 
@@ -540,34 +378,6 @@ export default function App() {
           </div>
         </div>
       </div>
-
-      {/* Info Modal */}
-      <Dialog open={isInfoModalOpen} onOpenChange={handleCloseInfoModal}>
-        <DialogContent className="max-w-md bg-card border border-border">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-medium">About This Calendar</DialogTitle>
-            <DialogDescription className="sr-only">
-              Information about the Central VA Startup Ecosystem calendar
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <p className="text-base leading-relaxed text-muted-foreground">
-              {settings.site_description}
-            </p>
-          </div>
-          
-          <div className="flex justify-end">
-            <Button 
-              variant="outline" 
-              onClick={handleCloseInfoModal}
-              className="px-4"
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Event Details Modal */}
       <EventDetailsModal

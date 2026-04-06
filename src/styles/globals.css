@@ -174,35 +174,19 @@ html {
   font-size: var(--font-size);
 }
 
-/* Geometric line pattern - Blue theme */
+/* Wave strip: full width, repeated vertically to fill the viewport */
 .geometric-bg {
-  background-image: 
-    /* Horizontal lines */
-    linear-gradient(0deg, transparent 0%, transparent 49%, rgba(59, 130, 246, 0.08) 49.5%, rgba(59, 130, 246, 0.08) 50.5%, transparent 51%, transparent 100%),
-    /* Vertical lines */
-    linear-gradient(90deg, transparent 0%, transparent 49%, rgba(37, 99, 235, 0.06) 49.5%, rgba(37, 99, 235, 0.06) 50.5%, transparent 51%, transparent 100%),
-    /* Diagonal lines 45deg */
-    linear-gradient(45deg, transparent 0%, transparent 48%, rgba(29, 78, 216, 0.04) 48.5%, rgba(29, 78, 216, 0.04) 51.5%, transparent 52%, transparent 100%),
-    /* Diagonal lines -45deg */
-    linear-gradient(-45deg, transparent 0%, transparent 48%, rgba(96, 165, 250, 0.04) 48.5%, rgba(96, 165, 250, 0.04) 51.5%, transparent 52%, transparent 100%),
-    /* Diamond pattern overlay */
-    linear-gradient(45deg, transparent 24%, rgba(147, 197, 253, 0.02) 25%, rgba(147, 197, 253, 0.02) 26%, transparent 27%, transparent 74%, rgba(147, 197, 253, 0.02) 75%, rgba(147, 197, 253, 0.02) 76%, transparent 77%);
-  background-size: 80px 80px, 80px 80px, 40px 40px, 40px 40px, 60px 60px;
-  background-position: 0 0, 0 0, 0 0, 0 0, 20px 20px;
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='464' height='55.7' viewBox='0 0 1000 120'%3E%3Cg fill='none' stroke='%23EFEEDB' stroke-width='7.7' stroke-opacity='0.18'%3E%3Cpath d='M-500 75c0 0 125-30 250-30S0 75 0 75s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500 45c0 0 125-30 250-30S0 45 0 45s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500 105c0 0 125-30 250-30S0 105 0 105s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500 15c0 0 125-30 250-30S0 15 0 15s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500-15c0 0 125-30 250-30S0-15 0-15s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500 135c0 0 125-30 250-30S0 135 0 135s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat-y;
+  background-size: 100% auto;
+  background-position: top center;
 }
 
 .dark .geometric-bg {
-  background-image: 
-    /* Horizontal lines */
-    linear-gradient(0deg, transparent 0%, transparent 49%, rgba(59, 130, 246, 0.12) 49.5%, rgba(59, 130, 246, 0.12) 50.5%, transparent 51%, transparent 100%),
-    /* Vertical lines */
-    linear-gradient(90deg, transparent 0%, transparent 49%, rgba(37, 99, 235, 0.1) 49.5%, rgba(37, 99, 235, 0.1) 50.5%, transparent 51%, transparent 100%),
-    /* Diagonal lines 45deg */
-    linear-gradient(45deg, transparent 0%, transparent 48%, rgba(29, 78, 216, 0.06) 48.5%, rgba(29, 78, 216, 0.06) 51.5%, transparent 52%, transparent 100%),
-    /* Diagonal lines -45deg */
-    linear-gradient(-45deg, transparent 0%, transparent 48%, rgba(96, 165, 250, 0.06) 48.5%, rgba(96, 165, 250, 0.06) 51.5%, transparent 52%, transparent 100%),
-    /* Diamond pattern overlay */
-    linear-gradient(45deg, transparent 24%, rgba(147, 197, 253, 0.03) 25%, rgba(147, 197, 253, 0.03) 26%, transparent 27%, transparent 74%, rgba(147, 197, 253, 0.03) 75%, rgba(147, 197, 253, 0.03) 76%, transparent 77%);
-  background-size: 80px 80px, 80px 80px, 40px 40px, 40px 40px, 60px 60px;
-  background-position: 0 0, 0 0, 0 0, 0 0, 20px 20px;
+  background-color: var(--background);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='464' height='55.7' viewBox='0 0 1000 120'%3E%3Cg fill='none' stroke='%23EFEEDB' stroke-width='7.7' stroke-opacity='0.18'%3E%3Cpath d='M-500 75c0 0 125-30 250-30S0 75 0 75s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500 45c0 0 125-30 250-30S0 45 0 45s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500 105c0 0 125-30 250-30S0 105 0 105s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500 15c0 0 125-30 250-30S0 15 0 15s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500-15c0 0 125-30 250-30S0-15 0-15s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3Cpath d='M-500 135c0 0 125-30 250-30S0 135 0 135s125 30 250 30s250-30 250-30s125-30 250-30s250 30 250 30s125 30 250 30s250-30 250-30'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat-y;
+  background-size: 100% auto;
+  background-position: top center;
 }

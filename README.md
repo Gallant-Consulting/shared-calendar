@@ -97,6 +97,8 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
    npm run dev
    ```
 
+   Local development now mounts `/api/events` and `/api/settings` through Vite middleware that calls the existing handlers in `api/`. Keep `AIRTABLE_PAT` and `AIRTABLE_BASE_ID` set in `.env` so these local API calls can read/write Airtable.
+
 7. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ### Available Scripts

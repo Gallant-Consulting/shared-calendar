@@ -55,3 +55,63 @@ The app previously relied on NoCodeAPI + Google Sheets for event and settings pe
 ### Tradeoffs
 - Introduces backend/runtime dependency for API routes in deployment.
 - Adds schema mapping logic that must stay aligned with Airtable table/field definitions.
+
+## 2026-03-30 - Local Dev API Routing Through Vite Middleware
+
+### Context
+Local `npm run dev` sessions were sometimes receiving HTML/JS content for `/api/settings` instead of JSON, causing frontend parse failures (`Unexpected token ... is not valid JSON`) and fallback defaults even though the Airtable-backed settings handler already existed.
+
+### Decision
+- Route local `/api/events` and `/api/settings` through Vite dev middleware to invoke existing API handlers in `api/events.ts` and `api/settings.ts`.
+- Keep frontend service paths unchanged (`/api/*`) for parity with deployed environments.
+- Add a defensive JSON content-type check in `src/services/settingsApi.ts` before parsing response bodies.
+
+### Rationale
+- Fixes the root cause (wrong local route target) instead of hiding it with client-only workarounds.
+- Preserves existing server-side Airtable integration and avoids duplicate local data paths.
+- Improves diagnostics when API responses are malformed or misrouted.
+
+### Tradeoffs
+- Adds dev-server middleware complexity in `vite.config.ts`.
+- Local API behavior now depends on server-side environment variables (`AIRTABLE_PAT`, `AIRTABLE_BASE_ID`) during frontend development.
+
+## 2026-04-06 - Simplified Events Split Layout (UI-Only)
+
+### Context
+The events experience needed to align with a simpler visual direction: one month calendar on the left, searchable upcoming events on the right, and continuous scrolling through event cards with month context that tracks the list position. The requested scope explicitly excluded backend/data-contract changes.
+
+### Decision
+- Refactor the main UI to a fixed two-column layout:
+  - left: single controlled month calendar
+  - right: search input + vertically scrolling event card list
+- Replace carousel-style list interactions with an infinite reveal list driven by frontend state (`visibleCount`) and `IntersectionObserver` sentinel behavior.
+- Keep event sourcing and CRUD paths unchanged (`getEvents`, `addEvent`, `updateEvent`, `deleteEvent`), and implement search filtering client-side only.
+- Synchronize the left calendar month with the right list’s top visible month while preserving manual month navigation controls.
+
+### Rationale
+- Matches the new screenshot-inspired UX without introducing backend risk.
+- Reuses existing component paths (`Calendar`, `EventList`, `ScheduleEventCard`) rather than introducing parallel/redundant screens.
+- Maintains existing modal and event-detail flows while simplifying browse/search behavior.
+
+### Tradeoffs
+- Infinite reveal still relies on all events already loaded in the client; very large datasets may eventually require virtualization.
+- Search is currently in-memory and scoped to loaded event fields, not server-backed relevance.
+- Month synchronization is DOM-position based, which is intentionally lightweight but may need refinement for highly dynamic card heights.
+
+## 2026-04-06 - Client-Side Token Search Over Loaded Events
+
+### Context
+Search filtered only the upcoming subset with a single substring over a few fields, so users could not find past events or match multiple keywords reliably.
+
+### Decision
+- Add [`src/utils/eventSearch.ts`](src/utils/eventSearch.ts) with normalized text, whitespace-separated query tokens, a combined haystack per event (title, notes, location, host organization, link, tags, attendee names, and human-readable start/end date strings), and **AND** semantics (every token must appear as a substring).
+- When the search box is **empty**, keep the existing **upcoming-only** list (including the fallback when nothing is upcoming).
+- When the query is **non-empty**, search **all events** returned from the API, sorted by `startDate` ascending.
+
+### Rationale
+- No backend or third-party search services; behavior is predictable and unit-testable.
+- Past events become discoverable when actively searching, without changing the default browse experience.
+
+### Tradeoffs
+- Ranking is chronological only, not relevance-ranked.
+- Performance depends on in-memory list size; acceptable for typical calendar loads.

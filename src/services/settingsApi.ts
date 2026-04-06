@@ -50,6 +50,15 @@ export async function getSettings(): Promise<Settings> {
     if (!response.ok) {
       throw new Error('Failed to fetch settings');
     }
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      console.warn('Failed to fetch settings from API: non-JSON response, using defaults.', {
+        path: SETTINGS_API_PATH,
+        status: response.status,
+        contentType,
+      });
+      return DEFAULT_SETTINGS;
+    }
     const result = (await response.json()) as Partial<Settings>;
     return normalizeSettings(result);
   } catch (error) {

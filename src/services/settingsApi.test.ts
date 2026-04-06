@@ -19,7 +19,7 @@ describe('settingsApi service contract', () => {
             contact_email: 'hi@example.com',
             footer_links: [],
           }),
-          { status: 200 },
+          { status: 200, headers: { 'content-type': 'application/json' } },
         ),
       ),
     );
@@ -46,5 +46,26 @@ describe('settingsApi service contract', () => {
         footer_links: [{ text: 'Terms', url: '#' }],
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it('getSettings falls back when API returns non-JSON content', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('<!doctype html><html><body>fallback</body></html>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        }),
+      ),
+    );
+
+    const settings = await getSettings();
+
+    expect(settings.site_title).toBe('Central VA ESO Calendar');
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('non-JSON response'),
+      expect.any(Object),
+    );
   });
 });

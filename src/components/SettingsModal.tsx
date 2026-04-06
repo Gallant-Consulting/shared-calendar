@@ -108,6 +108,18 @@ export function SettingsModal({ isOpen, onClose, onSave, currentSettings }: Sett
     }));
   };
 
+  const shouldHideFooterLink = (text: string) => {
+    const normalized = text.trim().toLowerCase();
+    return (
+      normalized === 'terms of service' ||
+      normalized === 'privacy policy' ||
+      normalized === 'cookie policy' ||
+      normalized === 'tos' ||
+      normalized === 'privacy' ||
+      normalized === 'cookie'
+    );
+  };
+
   if (!isAuthenticated) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -246,21 +258,24 @@ export function SettingsModal({ isOpen, onClose, onSave, currentSettings }: Sett
             <h3 className="text-lg font-medium">Footer Links</h3>
             
             <div className="space-y-2">
-              {settings.footer_links.map((link, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground flex-1">
-                    {link.text} → {link.url}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFooterLink(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+              {settings.footer_links
+                .map((link, index) => ({ link, index }))
+                .filter(({ link }) => !shouldHideFooterLink(link.text))
+                .map(({ link, index }) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground flex-1">
+                      {link.text} → {link.url}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFooterLink(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
             </div>
             
             <div className="flex gap-2">
