@@ -36,7 +36,9 @@ describe('settings proxy', () => {
     expect(response.status).toBe(200);
     const payload = await response.json();
     expect(payload.site_title).toBe('My Site');
-    expect(payload.tags).toEqual(['ESO', 'PAID']);
-    expect(payload.tag_labels).toEqual({ ESO: 'ESO Hosted', PAID: 'Paid' });
+    expect(payload.site_description).toBe('Desc');
+    expect(payload.contact_email).toBe('owner@example.com');
+    expect(payload.tags).toBeUndefined();
+    expect(payload.tag_labels).toBeUndefined();
   });
 });

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Event } from '../types';
-import { addEvent, getEvents, updateEvent } from './googleSheetApi';
+import { addEvent, getEvents, updateEvent } from './eventsApi';
 
-describe('googleSheetApi service contract', () => {
+describe('eventsApi service contract', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -19,10 +19,8 @@ describe('googleSheetApi service contract', () => {
               startDate: '2026-03-20T13:00:00.000Z',
               endDate: '2026-03-20T14:00:00.000Z',
               isAllDay: false,
-              attendees: [],
               notes: 'hello',
               location: 'Main Hall',
-              tags: ['ESO'],
             },
           ]),
           { status: 200 },
@@ -33,7 +31,7 @@ describe('googleSheetApi service contract', () => {
     const events = await getEvents();
     expect(events).toHaveLength(1);
     expect(events[0].startDate).toBeInstanceOf(Date);
-    expect(events[0].tags).toEqual(['ESO']);
+    expect(events[0].location).toBe('Main Hall');
   });
 
   it('addEvent and updateEvent return Event-shaped payload', async () => {
@@ -43,27 +41,22 @@ describe('googleSheetApi service contract', () => {
       startDate: '2026-03-20T13:00:00.000Z',
       endDate: '2026-03-20T14:00:00.000Z',
       isAllDay: false,
-      attendees: [],
       notes: '',
       location: '',
-      tags: ['NETWORKING'],
     };
     const eventInput: Event = {
       ...base,
       startDate: new Date(base.startDate),
       endDate: new Date(base.endDate),
     };
-    const createInput = {
+    const createInput: Omit<Event, 'id'> = {
       title: eventInput.title,
       startDate: eventInput.startDate,
       endDate: eventInput.endDate,
       isAllDay: eventInput.isAllDay,
-      attendees: eventInput.attendees,
       notes: eventInput.notes,
       location: eventInput.location,
-      tags: eventInput.tags,
       link: eventInput.link,
-      repeat: eventInput.repeat,
       hostOrganization: eventInput.hostOrganization,
     };
 

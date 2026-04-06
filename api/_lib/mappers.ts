@@ -17,23 +17,15 @@ export type EventPayload = {
   startDate: string;
   endDate: string;
   isAllDay: boolean;
-  attendees: Array<{ name: string; avatar: string }>;
   link?: string;
-  repeat?: {
-    frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-    until?: string;
-  };
   notes?: string;
   hostOrganization?: string;
   location?: string;
-  tags?: string[];
 };
 
 export type SettingsPayload = {
   site_title: string;
   site_description: string;
-  tags: string[];
-  tag_labels: Record<string, string>;
   contact_email: string;
   footer_links: Array<{ text: string; url: string }>;
 };
@@ -41,12 +33,6 @@ export type SettingsPayload = {
 export const DEFAULT_SETTINGS: SettingsPayload = {
   site_title: 'Central VA ESO Calendar',
   site_description: 'A shared calendar for ESO practitioners.',
-  tags: ['ESO', 'PAID', 'NETWORKING'],
-  tag_labels: {
-    ESO: 'ESO Event',
-    PAID: 'Paid Event',
-    NETWORKING: 'Networking Event',
-  },
   contact_email: '',
   footer_links: [
     { text: 'Terms of Service', url: '#' },
@@ -60,41 +46,6 @@ function asString(value: unknown): string {
   return String(value);
 }
 
-function asStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((v) => String(v)).filter(Boolean);
-  if (typeof value === 'string') {
-    return value
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean);
-  }
-  return [];
-}
-
-function parseTagLabels(value: unknown): Record<string, string> {
-  if (!value) return {};
-  if (typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, string>;
-  }
-
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      if (parsed && typeof parsed === 'object') {
-        return parsed as Record<string, string>;
-      }
-    } catch {
-      const output: Record<string, string> = {};
-      value.split(',').forEach((pair) => {
-        const [k, v] = pair.split(':').map((s) => s.trim());
-        if (k && v) output[k] = v;
-      });
-      return output;
-    }
-  }
-  return {};
-}
-
 function buildEventRecordFields(event: Partial<EventPayload>): Record<string, unknown> {
   return {
     'Event ID': event.id,
@@ -102,20 +53,54 @@ function buildEventRecordFields(event: Partial<EventPayload>): Record<string, un
     Title: event.title ?? '',
     'Start Date': event.startDate ?? '',
     'End Date': event.endDate ?? '',
-    Tags: event.tags ?? [],
     'All Day Event': Boolean(event.isAllDay),
-    'Repeat Frequency': event.repeat?.frequency && event.repeat.frequency !== 'none' ? event.repeat.frequency : '',
-    'Repeat Until': event.repeat?.until ?? '',
     Location: event.location ?? '',
     Notes: event.notes ?? '',
     'Event URL': event.link ?? '',
   };
 }
 
+const EASTERN_TZ = 'America/New_York';
+
+/** Airtable date-only values: interpret as midnight (00:00) on that calendar day in US Eastern. */
+function utcIsoForEasternMidnight(ymd: string): string {
+  const [y, mo, d] = ymd.split('-').map(Number);
+  const start = Date.UTC(y, mo - 1, d - 1, 0, 0, 0);
+  const end = Date.UTC(y, mo - 1, d + 2, 0, 0, 0);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TZ,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  });
+  for (let t = start; t < end; t += 60 * 1000) {
+    const dt = new Date(t);
+    const parts = Object.fromEntries(formatter.formatToParts(dt).map((p) => [p.type, p.value]));
+    if (
+      Number(parts.year) === y &&
+      Number(parts.month) === mo &&
+      Number(parts.day) === d &&
+      Number(parts.hour) === 0 &&
+      Number(parts.minute) === 0
+    ) {
+      return dt.toISOString();
+    }
+  }
+  return new Date(Date.UTC(y, mo - 1, d, 5, 0, 0)).toISOString();
+}
+
+/** ISO string; date-only strings (YYYY-MM-DD) use Eastern midnight. */
 function parseIsoDate(input: unknown): string {
   if (!input) return new Date().toISOString();
   if (typeof input === 'string') {
-    const parsed = new Date(input);
+    const trimmed = input.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return utcIsoForEasternMidnight(trimmed);
+    }
+    const parsed = new Date(trimmed);
     return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
   }
   if (input instanceof Date) {
@@ -131,11 +116,6 @@ export function isApprovedStatus(status: unknown): boolean {
 
 export function mapRecordToEvent(record: AirtableRecord): EventPayload {
   const fields = record.fields;
-  const frequency = asString(fields['Repeat Frequency']).toLowerCase();
-  const repeatFrequency =
-    frequency === 'daily' || frequency === 'weekly' || frequency === 'monthly' || frequency === 'yearly'
-      ? (frequency as 'daily' | 'weekly' | 'monthly' | 'yearly')
-      : 'none';
 
   const eventId = asString(fields['Event ID']) || record.id;
   return {
@@ -144,19 +124,10 @@ export function mapRecordToEvent(record: AirtableRecord): EventPayload {
     startDate: parseIsoDate(fields['Start Date']),
     endDate: parseIsoDate(fields['End Date']),
     isAllDay: Boolean(fields['All Day Event']),
-    attendees: [],
     link: asString(fields['Event URL']) || asString(fields['Payment Link']) || undefined,
-    repeat:
-      repeatFrequency === 'none'
-        ? undefined
-        : {
-            frequency: repeatFrequency,
-            until: asString(fields['Repeat Until']) || undefined,
-          },
     notes: asString(fields.Notes) || undefined,
     hostOrganization: asString(fields['Host Group']) || undefined,
     location: asString(fields.Location) || undefined,
-    tags: asStringArray(fields.Tags).map((tag) => tag.toUpperCase()),
   };
 }
 
@@ -173,14 +144,10 @@ export function mapEventToUpdateFields(event: Partial<EventPayload>): Record<str
 export function mapRecordToSettings(record: AirtableRecord | null): SettingsPayload {
   if (!record) return DEFAULT_SETTINGS;
   const fields = record.fields;
-  const tags = asStringArray(fields.tags);
-  const tagLabels = parseTagLabels(fields.tag_labels);
 
   return {
     site_title: asString(fields.site_title) || DEFAULT_SETTINGS.site_title,
     site_description: asString(fields.site_description) || DEFAULT_SETTINGS.site_description,
-    tags: tags.length > 0 ? tags : DEFAULT_SETTINGS.tags,
-    tag_labels: Object.keys(tagLabels).length > 0 ? tagLabels : DEFAULT_SETTINGS.tag_labels,
     contact_email: asString(fields.contact_email),
     footer_links: DEFAULT_SETTINGS.footer_links,
   };
@@ -191,7 +158,5 @@ export function mapSettingsToFields(settings: SettingsPayload): Record<string, u
     site_title: settings.site_title,
     site_description: settings.site_description,
     contact_email: settings.contact_email,
-    tags: settings.tags,
-    tag_labels: JSON.stringify(settings.tag_labels),
   };
 }

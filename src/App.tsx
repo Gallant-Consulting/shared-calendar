@@ -7,7 +7,7 @@ import { EventDetailsModal } from './components/EventDetailsModal';
 import { SettingsModal } from './components/SettingsModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './components/ui/dialog';
 import type { Event } from './types';
-import { getEvents, addEvent as apiAddEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent } from './services/googleSheetApi';
+import { getEvents, addEvent as apiAddEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent } from './services/eventsApi';
 import { getSettings, updateSettings, DEFAULT_SETTINGS, type Settings } from './services/settingsApi';
 import { eventMatchesQuery } from './utils/eventSearch';
 
@@ -395,7 +395,6 @@ export default function App() {
           onDelete={editingEvent ? () => handleDeleteEvent(editingEvent.id) : undefined}
           initialData={editingEvent}
           selectedDate={selectedDate}
-          settings={settings}
         />
       </ErrorBoundary>
 

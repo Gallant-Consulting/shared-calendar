@@ -7,11 +7,10 @@ A shared event calendar for the Central Virginia startup ecosystem (ESOs - Entre
 - **Calendar View** — Monthly grid with event visualization and navigation
 - **List View** — Filterable event list with time-based filters
 - **Event Management** — Full CRUD: create, view, edit, delete events
-- **Tag System** — Categorize events with ESO, PAID, NETWORKING, VIRTUAL tags
 - **Time Filters** — Today, Week, Month, Next Month, Quarter, All
 - **Dark Mode** — Toggle between light and dark themes
 - **URL State** — Direct links to events via `?event=<id>` and view switching via `?view=calendar|list`
-- **Admin Settings** — Password-protected settings for site title, description, tags, footer links
+- **Admin Settings** — Password-protected settings for site title, description, contact email, footer links
 - **Print** — Print calendar functionality
 
 ## Tech Stack
@@ -32,7 +31,7 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
 
 **Frontend service modules:**
 
-- `src/services/googleSheetApi.ts` — Events CRUD service contract used by UI (internals now call `/api/events`)
+- `src/services/eventsApi.ts` — Events CRUD service used by the UI (HTTP to `/api/events`, Airtable-backed)
 - `src/services/settingsApi.ts` — Settings service contract used by UI (internals now call `/api/settings`)
 
 **Proxy/API modules:**
@@ -52,8 +51,8 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
 
 **Airtable tables used by runtime:**
 
-- **Events** — `Event ID`, `Status`, `Title`, `Start Date`, `End Date`, `Tags`, `All Day Event`, `Repeat Frequency`, `Repeat Until`, `Host Group`, `Is Paid`, `Cost`, `Location`, `Notes`, `Payment Link`, `Image`, `Event URL`
-- **app_settings** — `site_title`, `site_description`, `contact_email`, `tags`, `tag_labels`
+- **Events** — `Event ID`, `Status`, `Title`, `Start Date`, `End Date`, `All Day Event`, `Host Group`, `Location`, `Notes`, `Payment Link`, `Image`, `Event URL` (legacy columns such as tags or repeat fields may remain in the base but are not read or written by this app)
+- **app_settings** — `site_title`, `site_description`, `contact_email` (legacy `tags` / `tag_labels` columns are ignored by the app)
 
 ## How to Run
 
@@ -136,7 +135,7 @@ src/
 │   ├── FloatingNewEventButton.tsx
 │   └── ui/                       # shadcn/ui components
 └── services/
-    ├── googleSheetApi.ts  # Events service (calls /api/events)
+    ├── eventsApi.ts       # Events service (calls /api/events)
     └── settingsApi.ts     # Settings service (calls /api/settings)
 
 api/
@@ -151,7 +150,7 @@ api/
 
 ### Event Model
 
-Events include: id, title, startDate, endDate, isAllDay, attendees, link, repeat pattern, notes, hostOrganization, location, tags. See `src/types.ts` for the full interface.
+Events include: id, title, startDate, endDate, isAllDay, optional link, notes, hostOrganization, location. **User-visible** date and time formatting uses **US Eastern** (`America/New_York`); values are stored and exchanged as ISO-8601 strings. See `src/types.ts` and `src/utils/eventTime.ts`.
 
 ### State Management
 

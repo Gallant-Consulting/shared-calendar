@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Filter, Link2, Building, MapPin, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import type { Event, FilterType } from '../types';
+import {
+  formatDateInputEastern,
+  formatEventTimeEastern,
+} from '../utils/eventTime';
 
 interface EventListCompactProps {
   events: Event[];
@@ -39,42 +42,28 @@ export function EventListCompact({
     }
   };
 
-  const getTagColor = (tag: string) => {
-    switch (tag) {
-      case 'ESO':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'PAID':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'NETWORKING':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-    }
-  };
-
   const formatEventDate = (event: Event) => {
     const today = new Date();
-    const eventDate = event.startDate;
-    const isToday = eventDate.toDateString() === today.toDateString();
-    const isTomorrow = eventDate.toDateString() === new Date(today.getTime() + 24 * 60 * 60 * 1000).toDateString();
-    
-    let dateStr;
-    if (isToday) {
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const evDay = formatDateInputEastern(event.startDate);
+    let dateStr: string;
+    if (evDay === formatDateInputEastern(today)) {
       dateStr = 'Today';
-    } else if (isTomorrow) {
+    } else if (evDay === formatDateInputEastern(tomorrow)) {
       dateStr = 'Tomorrow';
     } else {
-      dateStr = eventDate.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      });
+      dateStr = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        month: 'short',
+        day: 'numeric',
+      }).format(event.startDate);
     }
-    
+
     if (event.isAllDay) {
       return `${dateStr} - All day`;
     }
-    
-    const startTime = event.startDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    const startTime = formatEventTimeEastern(event.startDate);
     return `${dateStr}, ${startTime}`;
   };
 
@@ -160,26 +149,6 @@ export function EventListCompact({
                         <Link2 className="h-3 w-3 inline" />
                       </a>
                     </h4>
-                    
-                    {/* Tags */}
-                    {event.tags && event.tags.length > 0 && (
-                      <div className="flex gap-1">
-                        {event.tags.slice(0, 2).map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="outline"
-                            className={`${getTagColor(tag)} px-1 py-0 text-xs`}
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                        {event.tags.length > 2 && (
-                          <Badge variant="outline" className="px-1 py-0 text-xs">
-                            +{event.tags.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
                   </div>
                   
                   <p className="text-sm text-muted-foreground mb-1">

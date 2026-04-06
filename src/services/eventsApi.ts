@@ -9,16 +9,10 @@ type EventDto = {
   startDate: string;
   endDate: string;
   isAllDay: boolean;
-  attendees?: Array<{ name: string; avatar: string }>;
   link?: string;
-  repeat?: {
-    frequency: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-    until?: string;
-  };
   notes?: string;
   hostOrganization?: string;
   location?: string;
-  tags?: string[];
 };
 
 function toDate(input?: string): Date {
@@ -34,18 +28,10 @@ function mapDtoToEvent(dto: EventDto): Event {
     startDate: toDate(dto.startDate),
     endDate: toDate(dto.endDate),
     isAllDay: Boolean(dto.isAllDay),
-    attendees: dto.attendees ?? [],
     link: dto.link,
-    repeat: dto.repeat
-      ? {
-          frequency: dto.repeat.frequency === 'yearly' ? 'monthly' : dto.repeat.frequency,
-          until: dto.repeat.until ? toDate(dto.repeat.until) : undefined,
-        }
-      : undefined,
     notes: dto.notes,
     hostOrganization: dto.hostOrganization,
     location: dto.location,
-    tags: dto.tags ?? [],
   };
 }
 
@@ -60,18 +46,10 @@ function mapEventToDto(event: Partial<Event>): EventDto {
     startDate: event.startDate ? new Date(event.startDate).toISOString() : new Date().toISOString(),
     endDate: event.endDate ? new Date(event.endDate).toISOString() : new Date().toISOString(),
     isAllDay: Boolean(event.isAllDay),
-    attendees: event.attendees ?? [],
     link: event.link,
-    repeat: event.repeat
-      ? {
-          frequency: event.repeat.frequency,
-          until: event.repeat.until ? new Date(event.repeat.until).toISOString() : undefined,
-        }
-      : undefined,
     notes: event.notes,
     hostOrganization: event.hostOrganization,
     location: event.location,
-    tags: event.tags ?? [],
   };
 }
 

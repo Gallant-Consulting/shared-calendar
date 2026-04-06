@@ -9,35 +9,18 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { cn } from './ui/utils';
-
-function getAccentBorderClass(event: Event): string {
-  const first = event.tags?.[0];
-  switch (first) {
-    case 'ESO':
-      return 'border-l-blue-600';
-    case 'PAID':
-      return 'border-l-green-600';
-    case 'NETWORKING':
-      return 'border-l-purple-600';
-    case 'VIRTUAL':
-      return 'border-l-sky-600';
-    default:
-      return 'border-l-primary';
-  }
-}
+import {
+  formatEventTimeEastern,
+  formatMonthNameLongEastern,
+  formatShortWeekdayEastern,
+} from '../utils/eventTime';
 
 function formatTimeRange(event: Event): string {
   if (event.isAllDay) {
     return 'ALL DAY';
   }
-  const start = event.startDate.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-  const end = event.endDate.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  const start = formatEventTimeEastern(event.startDate);
+  const end = formatEventTimeEastern(event.endDate);
   return `${start} — ${end}`;
 }
 
@@ -72,8 +55,7 @@ export function ScheduleEventCard({ event, onEventClick }: ScheduleEventCardProp
       onClick={() => onEventClick(event)}
       className={cn(
         'flex h-full cursor-pointer flex-col rounded-md border bg-card p-5 text-left shadow-sm transition-shadow hover:shadow-md',
-        'border-l-4',
-        getAccentBorderClass(event),
+        'border-l-4 border-l-primary',
       )}
     >
       <div className="mb-4 flex items-start justify-between gap-2">
@@ -81,16 +63,19 @@ export function ScheduleEventCard({ event, onEventClick }: ScheduleEventCardProp
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {formatTimeRange(event)}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {event.startDate.toLocaleDateString('en-US', { weekday: 'short' })}
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{formatShortWeekdayEastern(event.startDate)}</p>
         </div>
         <div className="mr-2 text-right">
           <div className="text-4xl font-light leading-none text-fuchsia-600">
-            {event.startDate.getDate()}
+            {Number(
+              new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York',
+                day: 'numeric',
+              }).format(event.startDate),
+            )}
           </div>
           <div className="text-[10px] font-semibold uppercase tracking-wide text-fuchsia-600">
-            {event.startDate.toLocaleDateString('en-US', { month: 'long' })}
+            {formatMonthNameLongEastern(event.startDate)}
           </div>
         </div>
         <DropdownMenu>
@@ -160,24 +145,7 @@ export function ScheduleEventCard({ event, onEventClick }: ScheduleEventCardProp
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-1.5">
-            {event.attendees.slice(0, 3).map((attendee, index) => (
-              <div
-                key={index}
-                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-purple-600 text-xs text-white"
-              >
-                {attendee.name
-                  .split(' ')
-                  .map((n) => n[0])
-                  .join('')}
-              </div>
-            ))}
-            {event.attendees.length > 3 && (
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs">
-                +{event.attendees.length - 3}
-              </div>
-            )}
-          </div>
+          <span className="text-sm text-muted-foreground/60">No location</span>
         )}
       </div>
     </div>

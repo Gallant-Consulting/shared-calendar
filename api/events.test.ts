@@ -47,10 +47,10 @@ describe('events proxy', () => {
     expect(payload[0]).toMatchObject({
       id: 'evt-1',
       title: 'Launch',
-      tags: ['ESO'],
       notes: 'hello',
       location: 'Main Hall',
     });
+    expect(payload[0].tags).toBeUndefined();
   });
 
   it('POST writes a record and returns mapped event', async () => {
@@ -68,7 +68,6 @@ describe('events proxy', () => {
                   Title: 'New Event',
                   'Start Date': '2026-03-20T13:00:00.000Z',
                   'End Date': '2026-03-20T14:00:00.000Z',
-                  Tags: ['NETWORKING'],
                   'All Day Event': false,
                 },
               },
@@ -89,10 +88,8 @@ describe('events proxy', () => {
           startDate: '2026-03-20T13:00:00.000Z',
           endDate: '2026-03-20T14:00:00.000Z',
           isAllDay: false,
-          attendees: [],
           notes: '',
           location: '',
-          tags: ['NETWORKING'],
         }),
       }),
     );
@@ -100,6 +97,6 @@ describe('events proxy', () => {
     expect(response.status).toBe(200);
     const payload = await response.json();
     expect(payload.id).toBe('evt-new');
-    expect(payload.tags).toEqual(['NETWORKING']);
+    expect(payload.title).toBe('New Event');
   });
 });

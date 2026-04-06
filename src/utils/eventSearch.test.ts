@@ -10,7 +10,6 @@ import {
 function mkEvent(partial: Partial<Event> & Pick<Event, 'id' | 'title' | 'startDate' | 'endDate'>): Event {
   return {
     isAllDay: false,
-    attendees: [{ name: 'Alex Beta', avatar: '' }],
     ...partial,
   };
 }
@@ -35,24 +34,24 @@ describe('eventSearch', () => {
     expect(eventMatchesQuery(e, 'marketing gala')).toBe(false);
   });
 
-  it('matches tags and attendee names', () => {
-    const byTag = mkEvent({
+  it('matches notes and location', () => {
+    const e = mkEvent({
       id: '2',
       title: 'Meetup',
-      tags: ['NETWORKING'],
+      notes: 'networking focus',
       startDate: new Date(2026, 7, 1),
       endDate: new Date(2026, 7, 1, 12, 0),
     });
-    expect(eventMatchesQuery(byTag, 'networking')).toBe(true);
+    expect(eventMatchesQuery(e, 'networking')).toBe(true);
 
-    const byAttendee = mkEvent({
+    const byLocation = mkEvent({
       id: '3',
       title: 'Lunch',
-      attendees: [{ name: 'Jordan Lee', avatar: '' }],
+      location: 'Jordan Hall',
       startDate: new Date(2026, 8, 1),
       endDate: new Date(2026, 8, 1, 12, 0),
     });
-    expect(eventMatchesQuery(byAttendee, 'jordan')).toBe(true);
+    expect(eventMatchesQuery(byLocation, 'jordan')).toBe(true);
   });
 
   it('includes past-dated events when they match', () => {

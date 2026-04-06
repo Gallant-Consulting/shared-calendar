@@ -8,7 +8,6 @@ function mkEvent(
 ): Event {
   return {
     isAllDay: false,
-    attendees: [{ name: 'Alex Beta', avatar: '' }],
     ...partial,
   };
 }

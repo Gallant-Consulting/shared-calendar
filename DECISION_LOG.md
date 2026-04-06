@@ -115,3 +115,23 @@ Search filtered only the upcoming subset with a single substring over a few fiel
 ### Tradeoffs
 - Ranking is chronological only, not relevance-ranked.
 - Performance depends on in-memory list size; acceptable for typical calendar loads.
+
+## 2026-04-06 - Airtable-only event model, naming cleanup, Eastern time display
+
+### Context
+The codebase still referenced Google Sheets naming for the events HTTP client, and the product model included attendees, tags, and recurrence that are no longer part of the Airtable-backed workflow. Settings still exposed tag lists used only for event tagging.
+
+### Decision
+- Rename the frontend events module to `src/services/eventsApi.ts` (same `/api/events` contract).
+- Remove **attendees**, **tags**, and **recurrence** from the `Event` type, API `EventPayload`, mappers, UI (modals, cards, list compact), and search haystack.
+- Remove **tags** and **tag_labels** from the settings shape and API mapping; stop reading them into the frontend and stop writing them from `PUT /api/settings` (legacy Airtable columns may remain).
+- Standardize **user-visible** event date/time formatting on **US Eastern** (`America/New_York`) via `src/utils/eventTime.ts`; interpret Airtable **date-only** `Start Date` / `End Date` values as **midnight that calendar day in Eastern** when mapping to ISO in `api/_lib/mappers.ts`.
+
+### Rationale
+- Aligns naming and data model with an Airtable-only backend and reduces unused surface area.
+- One display timezone avoids ambiguous local browser formatting for a region-specific calendar.
+- Slimmer settings and event payloads simplify maintenance and tests.
+
+### Tradeoffs
+- Existing Airtable tag/recurrence columns are no longer surfaced; manual base cleanup is optional.
+- Calendar grid month/day bucketing still uses the browser’s local date for cell keys (unchanged); list and modal formatting use Eastern as documented.

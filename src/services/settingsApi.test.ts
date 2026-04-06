@@ -14,8 +14,6 @@ describe('settingsApi service contract', () => {
           JSON.stringify({
             site_title: 'A',
             site_description: 'B',
-            tags: ['ESO'],
-            tag_labels: { ESO: 'ESO Hosted' },
             contact_email: 'hi@example.com',
             footer_links: [],
           }),
@@ -26,8 +24,8 @@ describe('settingsApi service contract', () => {
 
     const settings = await getSettings();
     expect(settings.site_title).toBe('A');
-    expect(settings.tags).toEqual(['ESO']);
-    expect(settings.tag_labels).toEqual({ ESO: 'ESO Hosted' });
+    expect(settings.site_description).toBe('B');
+    expect(settings.contact_email).toBe('hi@example.com');
   });
 
   it('updateSettings sends payload to proxy and succeeds', async () => {
@@ -40,8 +38,6 @@ describe('settingsApi service contract', () => {
       updateSettings({
         site_title: 'Title',
         site_description: 'Desc',
-        tags: ['ESO'],
-        tag_labels: { ESO: 'ESO Hosted' },
         contact_email: 'owner@example.com',
         footer_links: [{ text: 'Terms', url: '#' }],
       }),

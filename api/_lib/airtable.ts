@@ -23,7 +23,7 @@ function buildTableUrl(tableName: string): string {
   return `${AIRTABLE_API_ROOT}/${baseId}/${encodeURIComponent(tableName)}`;
 }
 
-function authHeaders(): HeadersInit {
+function authHeaders(): Record<string, string> {
   return {
     Authorization: `Bearer ${getEnv('AIRTABLE_PAT')}`,
     'Content-Type': 'application/json',
