@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-04-07 - Viewport-locked layout; event list fills remaining height
+
+### Context
+The main column used a fixed `max-height` (`min(34rem, …dvh)`) so the document could still grow (`min-h-screen`) and the list did not use all vertical space below the header.
+
+### Decision
+- `html` / `body` / `#root`: `height: 100%`, `overflow: hidden` on the document; `#root` is a flex column so the app can fill the viewport without window scroll.
+- `App` root uses `h-full min-h-0 flex-1 flex-col overflow-hidden` instead of `min-h-screen`.
+- Main grid uses `flex-1 min-h-0`; on small screens `grid-rows-[auto_minmax(0,1fr)]` so the list row consumes remaining height; on `lg`, two columns with `lg:h-full` so the list column stretches with the row.
+- Removed fixed heights on the list wrapper; `EventList` keeps internal `overflow-y-auto` for long lists.
+- Footer padding reduced slightly (`py-4`) to preserve room for the main grid.
+
 ## 2026-04-07 - Production Node server for Railway (`server.ts`)
 
 ### Context

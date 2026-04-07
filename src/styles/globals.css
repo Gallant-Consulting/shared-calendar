@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* App fills the viewport; no document-level scroll (panels scroll internally). */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  margin: 0;
+}
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

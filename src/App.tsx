@@ -248,7 +248,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground geometric-bg">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground geometric-bg">
       {/* Error Toast */}
       {error && (
         <div className="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded shadow z-50">
@@ -262,20 +262,16 @@ export default function App() {
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col px-6 pt-10 pb-8">
-        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col p-6">
-          <div className="mb-6 shrink-0 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pt-8 pb-4">
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-6 pb-2 pt-2">
+          <div className="mb-4 shrink-0">
             <h1 className="text-4xl font-semibold tracking-tight">
               Central VA <span className="text-fuchsia-600">Events</span>
             </h1>
           </div>
 
-          {/*
-            Embla’s vertical viewport must have a definite height; % / max-h-full often never resolve here, so the
-            track grows to all slides and the page becomes extremely tall. Use a fixed vh/rem cap instead of inheriting.
-          */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
-            <div className="min-h-0 lg:sticky lg:top-6 lg:self-start">
+          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-6 lg:h-full lg:min-h-0 lg:grid-cols-[300px_minmax(0,1fr)] lg:grid-rows-1">
+            <div className="flex min-h-0 flex-col justify-start lg:sticky lg:top-4">
               <Calendar
                 events={filteredEvents}
                 displayMonth={activeMonth}
@@ -284,7 +280,7 @@ export default function App() {
               />
             </div>
 
-            <div className="flex h-[min(34rem,calc(100dvh_-_9.5rem))] shrink-0 flex-col overflow-hidden sm:h-[min(36rem,calc(100dvh_-_10rem))] lg:h-[min(38rem,calc(100dvh_-_11rem))]">
+            <div className="flex min-h-0 flex-col overflow-hidden">
               <EventList
                 events={visibleEvents}
                 accentSourceEvents={filteredEvents}
@@ -302,7 +298,7 @@ export default function App() {
       </div>
 
       {/* Footer Section - Below main content */}
-      <div className="shrink-0 py-8 text-center">
+      <div className="shrink-0 py-4 text-center">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 max-w-5xl mx-auto px-6">
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span>

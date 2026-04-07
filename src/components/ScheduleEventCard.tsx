@@ -59,7 +59,8 @@ export function ScheduleEventCard({ event, accentColor }: ScheduleEventCardProps
               href={event.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-lg font-semibold leading-snug tracking-tight text-foreground underline decoration-transparent decoration-2 underline-offset-2 transition-colors hover:decoration-foreground/30"
+              style={{ '--schedule-accent': accentColor } as React.CSSProperties}
+              className="block text-lg font-semibold leading-snug tracking-tight text-foreground underline decoration-[#dbdbdb] decoration-2 underline-offset-2 transition-[text-decoration-color] duration-200 ease-out hover:[text-decoration-color:var(--schedule-accent)]"
             >
               {event.title}
             </a>
