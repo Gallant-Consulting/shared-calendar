@@ -1,5 +1,20 @@
 # Decision Log
 
+## 2026-04-07 - Production Node server for Railway (`server.ts`)
+
+### Context
+`npm run build` produces static assets only. Vite dev middleware mounts `/api/events`, but **`vite preview` and static hosts** serve `index.html` for unknown paths, so `/api/events` returned HTML and the client threw `Unexpected token '<'` when parsing JSON. Railway (and similar) deployments that only ran static hosting or `vite preview` had no working API.
+
+### Decision
+- Add **`server.ts`**: Node HTTP server that serves `dist/` (with SPA fallback) and delegates **`/api/events`** to the existing `api/events.ts` handler.
+- Add **`api/_lib/nodeHttpAdapter.ts`** and reuse it from **`vite.config.ts`** dev middleware to avoid duplicating Node ↔ Web `Request`/`Response` conversion.
+- **`npm start`** → `tsx server.ts`; dependencies **`tsx`** and **`dotenv`** (load `.env` locally).
+- **`GET /health`** for readiness.
+- **`eventsApi`**: stricter JSON handling with a clearer error when the response is HTML; still accept JSON bodies when `Content-Type` is missing or `text/plain` if the body looks like JSON (tests and some proxies).
+
+### Tradeoffs
+- Production requires a Node process (not pure static CDN). For static-only hosting, run the API elsewhere and set **`VITE_API_BASE_URL`**.
+
 ## 2026-04-06 - Calendar day dots match schedule accent colors
 
 ### Context

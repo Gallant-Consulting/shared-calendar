@@ -56,12 +56,32 @@ function mapEventToDto(event: Partial<Event>): EventDto {
   };
 }
 
+function looksLikeJsonPayload(text: string): boolean {
+  const t = text.trimStart();
+  return t.startsWith('{') || t.startsWith('[');
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
+  const text = await response.text();
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed (${response.status})`);
+    throw new Error(text || `Request failed (${response.status})`);
   }
-  return (await response.json()) as T;
+  const ct = response.headers.get('content-type') ?? '';
+  const jsonByHeader = ct.includes('application/json') || ct.includes('text/json');
+  if (!jsonByHeader && !looksLikeJsonPayload(text)) {
+    const hint =
+      text.trimStart().startsWith('<') || text.toLowerCase().includes('<!doctype')
+        ? ' The server returned HTML instead of JSON — is /api/events routed to the Node handler in production?'
+        : '';
+    throw new Error(
+      `Expected JSON from ${EVENTS_API_PATH} but got ${ct || 'unknown content-type'}.${hint}`,
+    );
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Invalid JSON from ${EVENTS_API_PATH}.`);
+  }
 }
 
 export async function getEvents(): Promise<Event[]> {

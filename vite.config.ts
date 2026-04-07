@@ -3,53 +3,11 @@ import react from '@vitejs/plugin-react';
 import { loadEnv } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import eventsHandler from './api/events';
+import { incomingMessageToWebRequest, writeWebResponseToNode } from './api/_lib/nodeHttpAdapter';
 
 const API_ROUTES: Record<string, (request: Request) => Promise<Response>> = {
   '/api/events': eventsHandler,
 };
-
-async function readRawBody(req: IncomingMessage): Promise<Uint8Array | undefined> {
-  if (req.method === 'GET' || req.method === 'HEAD') {
-    return undefined;
-  }
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  if (chunks.length === 0) {
-    return undefined;
-  }
-  return Buffer.concat(chunks);
-}
-
-async function toWebRequest(req: IncomingMessage): Promise<Request> {
-  const origin = `http://${req.headers.host || 'localhost:5173'}`;
-  const url = new URL(req.url || '/', origin);
-  const body = await readRawBody(req);
-  const headers = new Headers();
-  Object.entries(req.headers).forEach(([key, value]) => {
-    if (value === undefined) return;
-    if (Array.isArray(value)) {
-      value.forEach((item) => headers.append(key, item));
-      return;
-    }
-    headers.set(key, value);
-  });
-  return new Request(url.toString(), {
-    method: req.method || 'GET',
-    headers,
-    body,
-  });
-}
-
-async function writeWebResponse(res: ServerResponse, response: Response): Promise<void> {
-  res.statusCode = response.status;
-  response.headers.forEach((value, key) => {
-    res.setHeader(key, value);
-  });
-  const body = new Uint8Array(await response.arrayBuffer());
-  res.end(body);
-}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -76,9 +34,10 @@ export default defineConfig(({ mode }) => {
             }
 
             try {
-              const request = await toWebRequest(req);
+              const origin = `http://${req.headers.host || 'localhost:5173'}`;
+              const request = await incomingMessageToWebRequest(req as IncomingMessage, origin);
               const response = await handler(request);
-              await writeWebResponse(res, response);
+              await writeWebResponseToNode(res as ServerResponse, response);
             } catch (error) {
               const message = error instanceof Error ? error.message : 'Unknown error';
               res.statusCode = 500;

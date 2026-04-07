@@ -56,7 +56,7 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
 - Node.js (latest LTS recommended)
 - npm or yarn
 - Airtable base with the `Events` table and required fields
-- Deployment target that supports API routes/serverless functions
+- Production host that runs **Node** with `npm start` (see below). Static-only hosts cannot serve `/api/events` unless you point `VITE_API_BASE_URL` at a separate API.
 
 ### Installation
 
@@ -94,13 +94,28 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
 
 7. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
+### Production build (Railway, VPS, etc.)
+
+`vite preview` and plain static file hosts **do not** run the Airtable proxy: `/api/events` would return the SPA’s `index.html` (HTML), which causes `Unexpected token '<'` in the browser. Use the included Node server instead.
+
+1. Set environment variables on the host: **`AIRTABLE_PAT`**, **`AIRTABLE_BASE_ID`**, and optionally **`PORT`** (Railway sets `PORT` automatically).
+2. Build and start:
+   ```bash
+   npm run build
+   npm start
+   ```
+   `npm start` runs `tsx server.ts`, which serves `dist/` and handles **`GET/POST/PUT/DELETE /api/events`**.
+
+`GET /health` returns `200` with body `ok` for readiness checks.
+
 ### Available Scripts
 
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start development server with hot reload |
 | `npm run build` | Build for production |
-| `npm run preview` | Preview production build locally |
+| `npm start` | Serve `dist/` + `/api/events` (use in production) |
+| `npm run preview` | Preview static build only (no API — not for production data) |
 | `npm run lint` | Run ESLint |
 
 ## Environment Variables
@@ -110,6 +125,7 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
 | `AIRTABLE_PAT` | Airtable Personal Access Token (server-only) |
 | `AIRTABLE_BASE_ID` | Airtable base ID (server-only) |
 | `VITE_API_BASE_URL` | Optional frontend API base URL override (defaults to same-origin) |
+| `PORT` | HTTP port for `npm start` (defaults to `4173`; Railway provides this) |
 
 ## Project Structure
 
@@ -133,7 +149,10 @@ api/
 ├── events.ts              # Airtable events proxy endpoint
 └── _lib/
     ├── airtable.ts        # Airtable HTTP/env helpers
-    └── mappers.ts         # Airtable <-> app mapping logic
+    ├── mappers.ts         # Airtable <-> app mapping logic
+    └── nodeHttpAdapter.ts # Node request/response helpers (dev middleware + `server.ts`)
+
+server.ts                  # Production Node entry: static `dist/` + `/api/events`
 ```
 
 ## Data Architecture
