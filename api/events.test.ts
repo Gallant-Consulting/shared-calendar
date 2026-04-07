@@ -31,6 +31,9 @@ describe('events proxy', () => {
                   'All Day Event': false,
                   Notes: 'hello',
                   Location: 'Main Hall',
+                  host_name: 'Tech Guild',
+                  Image:
+                    'https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/37bea206-74bc-46c6-ac2e-248577a13134/2025-Women-in-Tech-Awards-114.jpg',
                 },
               },
             ],
@@ -49,6 +52,9 @@ describe('events proxy', () => {
       title: 'Launch',
       notes: 'hello',
       location: 'Main Hall',
+      hostOrganization: 'Tech Guild',
+      imageUrl:
+        'https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/37bea206-74bc-46c6-ac2e-248577a13134/2025-Women-in-Tech-Awards-114.jpg',
     });
     expect(payload[0].tags).toBeUndefined();
   });

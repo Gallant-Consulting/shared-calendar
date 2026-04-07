@@ -1,18 +1,10 @@
-import { Link2, MapPin, MoreHorizontal } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import type { Event } from '../types';
-import { Button } from './ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 import { cn } from './ui/utils';
 import {
   formatEventTimeEastern,
   formatMonthNameLongEastern,
-  formatShortWeekdayEastern,
 } from '../utils/eventTime';
 
 function formatTimeRange(event: Event): string {
@@ -33,110 +25,93 @@ function isLikelyStreetAddress(location: string): boolean {
 
 export interface ScheduleEventCardProps {
   event: Event;
-  onEventClick: (event: Event) => void;
+  accentColor: string;
 }
 
-export function ScheduleEventCard({ event, onEventClick }: ScheduleEventCardProps) {
+export function ScheduleEventCard({ event, accentColor }: ScheduleEventCardProps) {
   const hasLocation = Boolean(event.location?.trim());
   const locationLabel = event.location?.trim() ?? '';
+  const hasLink = Boolean(event.link?.trim());
+  const timeLabel = formatTimeRange(event);
 
-  const copyEventLink = async () => {
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('event', event.id);
-      await navigator.clipboard.writeText(url.toString());
-    } catch {
-      // ignore clipboard failures (e.g. insecure context)
-    }
-  };
+  const accentStyle = { color: accentColor } as const;
+  const borderAccentStyle = { borderLeftColor: accentColor } as const;
+
+  const dayNumber = Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      day: 'numeric',
+    }).format(event.startDate),
+  );
 
   return (
     <div
-      onClick={() => onEventClick(event)}
+      style={borderAccentStyle}
       className={cn(
-        'flex h-full cursor-pointer flex-col rounded-md border bg-card p-5 text-left shadow-sm transition-shadow hover:shadow-md',
-        'border-l-4 border-l-primary',
+        'flex flex-col rounded-md border border-border bg-card p-5 text-left shadow-sm',
+        'border-l-4 border-solid',
       )}
     >
-      <div className="mb-4 flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {formatTimeRange(event)}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">{formatShortWeekdayEastern(event.startDate)}</p>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          {hasLink ? (
+            <a
+              href={event.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-lg font-semibold leading-snug tracking-tight text-foreground underline decoration-transparent decoration-2 underline-offset-2 transition-colors hover:decoration-foreground/30"
+            >
+              {event.title}
+            </a>
+          ) : (
+            <h3 className="text-lg font-semibold leading-snug tracking-tight text-foreground">{event.title}</h3>
+          )}
+          {event.hostOrganization?.trim() ? (
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Hosted by{' '}
+              <span className="font-medium text-foreground/90">{event.hostOrganization.trim()}</span>
+            </p>
+          ) : null}
         </div>
-        <div className="mr-2 text-right">
-          <div className="text-4xl font-light leading-none text-fuchsia-600">
-            {Number(
-              new Intl.DateTimeFormat('en-US', {
-                timeZone: 'America/New_York',
-                day: 'numeric',
-              }).format(event.startDate),
-            )}
-          </div>
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-fuchsia-600">
+        <div className="shrink-0 text-right" style={accentStyle}>
+          <div className="text-4xl font-light leading-none tabular-nums">{dayNumber}</div>
+          <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide">
             {formatMonthNameLongEastern(event.startDate)}
           </div>
+          <p className="mt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{timeLabel}</p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0 text-muted-foreground"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal className="size-4" />
-              <span className="sr-only">Open menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem
-              onSelect={() => {
-                onEventClick(event);
-              }}
-            >
-              View details
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void copyEventLink()}>Copy event link</DropdownMenuItem>
-            {event.link ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <a href={event.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                    <Link2 className="size-3.5" />
-                    Open meeting link
-                  </a>
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
-      <h3 className="mb-2 text-base font-semibold leading-snug text-foreground">{event.title}</h3>
+      {event.imageUrl ? (
+        <div className="mb-4 w-full overflow-hidden rounded-lg border border-border/60 bg-muted/30">
+          <ImageWithFallback
+            src={event.imageUrl}
+            alt={event.title}
+            className="max-h-56 w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+      ) : null}
 
       <p
         className={cn(
-          'mb-4 min-h-[2.5rem] flex-1 text-sm text-muted-foreground',
-          event.notes ? 'line-clamp-3' : 'line-clamp-1 opacity-60',
+          'mb-4 min-h-[1.5rem] text-sm text-muted-foreground',
+          event.notes ? 'line-clamp-4' : 'line-clamp-1 italic opacity-70',
         )}
       >
         {event.notes ?? 'No description'}
       </p>
 
-      <div className="mt-auto flex items-center gap-2 border-t border-border/60 pt-3">
+      <div className="mt-auto border-t border-border/60 pt-3">
         {hasLocation ? (
-          <div className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="size-4 shrink-0 text-purple-500" />
+          <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="size-4 shrink-0" style={accentStyle} aria-hidden />
             {isLikelyStreetAddress(locationLabel) ? (
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationLabel)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="truncate text-blue-500 hover:underline"
-                onClick={(e) => e.stopPropagation()}
               >
                 {locationLabel}
               </a>

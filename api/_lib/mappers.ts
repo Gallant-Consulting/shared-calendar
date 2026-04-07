@@ -1,9 +1,7 @@
 const EVENTS_TABLE = 'Events';
-const SETTINGS_TABLE = 'app_settings';
 
 export const TABLES = {
   EVENTS_TABLE,
-  SETTINGS_TABLE,
 };
 
 type AirtableRecord = {
@@ -21,24 +19,7 @@ export type EventPayload = {
   notes?: string;
   hostOrganization?: string;
   location?: string;
-};
-
-export type SettingsPayload = {
-  site_title: string;
-  site_description: string;
-  contact_email: string;
-  footer_links: Array<{ text: string; url: string }>;
-};
-
-export const DEFAULT_SETTINGS: SettingsPayload = {
-  site_title: 'Central VA ESO Calendar',
-  site_description: 'A shared calendar for ESO practitioners.',
-  contact_email: '',
-  footer_links: [
-    { text: 'Terms of Service', url: '#' },
-    { text: 'Privacy Policy', url: '#' },
-    { text: 'Cookie Policy', url: '#' },
-  ],
+  imageUrl?: string;
 };
 
 function asString(value: unknown): string {
@@ -109,6 +90,48 @@ function parseIsoDate(input: unknown): string {
   return new Date().toISOString();
 }
 
+/** First attachment URL from an Airtable attachments field, or undefined. */
+function firstAttachmentUrl(value: unknown): string | undefined {
+  if (value == null || !Array.isArray(value) || value.length === 0) return undefined;
+  const first = value[0];
+  if (
+    typeof first === 'object' &&
+    first !== null &&
+    'url' in first &&
+    typeof (first as { url: string }).url === 'string'
+  ) {
+    return (first as { url: string }).url;
+  }
+  return undefined;
+}
+
+/** Plain https URL stored as text (e.g. long-form URL field), or undefined. */
+function trimmedHttpsUrl(value: unknown): string | undefined {
+  const s = typeof value === 'string' ? value.trim() : asString(value).trim();
+  if (!s || !/^https?:\/\//i.test(s)) return undefined;
+  return s;
+}
+
+/**
+ * Airtable image fields may be: plain URL text, or attachment array with `{ url }`.
+ * Tries URL string first, then attachment shape.
+ */
+function imageUrlFromFieldValue(value: unknown): string | undefined {
+  const direct = trimmedHttpsUrl(value);
+  if (direct) return direct;
+  return firstAttachmentUrl(value);
+}
+
+/** Prefer Image URL, then Image / Flyer / Cover Image (text URL or attachments). */
+function imageUrlFromFields(fields: Record<string, unknown>): string | undefined {
+  return (
+    trimmedHttpsUrl(fields['Image URL']) ??
+    imageUrlFromFieldValue(fields['Image']) ??
+    imageUrlFromFieldValue(fields['Flyer']) ??
+    imageUrlFromFieldValue(fields['Cover Image'])
+  );
+}
+
 export function isApprovedStatus(status: unknown): boolean {
   const normalized = asString(status).trim().toLowerCase();
   return normalized === 'approved' || normalized === 'apporoved';
@@ -126,8 +149,12 @@ export function mapRecordToEvent(record: AirtableRecord): EventPayload {
     isAllDay: Boolean(fields['All Day Event']),
     link: asString(fields['Event URL']) || asString(fields['Payment Link']) || undefined,
     notes: asString(fields.Notes) || undefined,
-    hostOrganization: asString(fields['Host Group']) || undefined,
+    hostOrganization:
+      asString(fields['host_name']).trim() ||
+      asString(fields['Host Group']).trim() ||
+      undefined,
     location: asString(fields.Location) || undefined,
+    imageUrl: imageUrlFromFields(fields),
   };
 }
 
@@ -139,24 +166,4 @@ export function mapEventToUpdateFields(event: Partial<EventPayload>): Record<str
   const fields = buildEventRecordFields(event);
   delete fields['Event ID'];
   return fields;
-}
-
-export function mapRecordToSettings(record: AirtableRecord | null): SettingsPayload {
-  if (!record) return DEFAULT_SETTINGS;
-  const fields = record.fields;
-
-  return {
-    site_title: asString(fields.site_title) || DEFAULT_SETTINGS.site_title,
-    site_description: asString(fields.site_description) || DEFAULT_SETTINGS.site_description,
-    contact_email: asString(fields.contact_email),
-    footer_links: DEFAULT_SETTINGS.footer_links,
-  };
-}
-
-export function mapSettingsToFields(settings: SettingsPayload): Record<string, unknown> {
-  return {
-    site_title: settings.site_title,
-    site_description: settings.site_description,
-    contact_email: settings.contact_email,
-  };
 }

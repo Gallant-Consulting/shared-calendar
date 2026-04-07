@@ -13,6 +13,7 @@ type EventDto = {
   notes?: string;
   hostOrganization?: string;
   location?: string;
+  imageUrl?: string;
 };
 
 function toDate(input?: string): Date {
@@ -32,6 +33,7 @@ function mapDtoToEvent(dto: EventDto): Event {
     notes: dto.notes,
     hostOrganization: dto.hostOrganization,
     location: dto.location,
+    imageUrl: dto.imageUrl,
   };
 }
 
@@ -50,6 +52,7 @@ function mapEventToDto(event: Partial<Event>): EventDto {
     notes: event.notes,
     hostOrganization: event.hostOrganization,
     location: event.location,
+    imageUrl: event.imageUrl,
   };
 }
 

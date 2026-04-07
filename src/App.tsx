@@ -1,15 +1,13 @@
 import './styles/globals.css'
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Calendar } from './components/Calendar';
 import { EventList } from './components/EventList';
 import { EventModal } from './components/EventModal';
-import { EventDetailsModal } from './components/EventDetailsModal';
-import { SettingsModal } from './components/SettingsModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './components/ui/dialog';
 import type { Event } from './types';
 import { getEvents, addEvent as apiAddEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent } from './services/eventsApi';
-import { getSettings, updateSettings, DEFAULT_SETTINGS, type Settings } from './services/settingsApi';
 import { eventMatchesQuery } from './utils/eventSearch';
+import { FOOTER_LINKS } from './siteConfig';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error?: Error}> {
@@ -61,67 +59,28 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
-  const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [viewingEvent, setViewingEvent] = useState<Event | null>(null);
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(20);
   const [activeMonth, setActiveMonth] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [scrollToDay, setScrollToDay] = useState<Date | null>(null);
 
-  // URL parameter handling for direct event links
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const eventId = urlParams.get('event');
-
-    if (eventId) {
-      const checkEventOnceLoaded = () => {
-        if (events.length > 0) {
-          const event = events.find(e => e.id === eventId);
-          if (event) {
-            setViewingEvent(event);
-            setIsEventDetailsOpen(true);
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set('event', eventId);
-            window.history.replaceState({}, '', newUrl.toString());
-          }
-        }
-      };
-
-      checkEventOnceLoaded();
-      const interval = setInterval(checkEventOnceLoaded, 100);
-      setTimeout(() => clearInterval(interval), 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [events]);
-
-  // Handle browser back/forward navigation
+  // Handle browser back/forward: clear edit modal when `event` query is removed from the URL.
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const eventId = urlParams.get('event');
 
-      if (eventId && events.length > 0) {
-        const event = events.find(e => e.id === eventId);
-        if (event) {
-          setViewingEvent(event);
-          setIsEventDetailsOpen(true);
-        }
-      } else {
-        // No event parameter, close modals
-        setIsEventDetailsOpen(false);
+      if (!eventId) {
         setIsEventModalOpen(false);
-        setViewingEvent(null);
         setEditingEvent(null);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [events]);
+  }, []);
 
   useEffect(() => {
     // Apply theme class to document
@@ -162,18 +121,6 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Load settings from API on mount
-  useEffect(() => {
-    getSettings()
-      .then(data => {
-        setSettings(data);
-      })
-      .catch(e => {
-        console.warn('Failed to load settings:', e);
-        setSettings(DEFAULT_SETTINGS);
-      });
-  }, []);
-
   const upcomingEvents = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -200,17 +147,13 @@ export default function App() {
     }
   }, [filteredEvents]);
 
-  const visibleEvents = filteredEvents.slice(0, visibleCount);
+  // Must be memoized: a new array every render would retrigger EventList's scroll sync and reset the calendar month.
+  const visibleEvents = useMemo(
+    () => filteredEvents.slice(0, visibleCount),
+    [filteredEvents, visibleCount],
+  );
   const hasMore = visibleCount < filteredEvents.length;
 
-  const handleViewEvent = (event: Event) => {
-    setViewingEvent(event);
-    setIsEventDetailsOpen(true);
-    // Update URL with event parameter
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.set('event', event.id);
-    window.history.pushState({}, '', newUrl.toString());
-  };
   const handleSaveEvent = async (eventData: Omit<Event, 'id'>) => {
     setLoading(true);
     setError(null);
@@ -227,8 +170,9 @@ export default function App() {
       setIsEventModalOpen(false);
       setEditingEvent(null);
       setSelectedDate(null);
-    } catch (e: any) {
-      setError(e.message || 'Failed to save event');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to save event';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -242,20 +186,12 @@ export default function App() {
       setEvents(prev => prev.filter(e => e.id !== eventId));
       setIsEventModalOpen(false);
       setEditingEvent(null);
-    } catch (e: any) {
-      setError(e.message || 'Failed to delete event');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to delete event';
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCloseEventDetails = () => {
-    setIsEventDetailsOpen(false);
-    setViewingEvent(null);
-    // Remove event parameter from URL
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.delete('event');
-    window.history.replaceState({}, '', newUrl.toString());
   };
 
   const handleCloseEventModal = () => {
@@ -265,16 +201,6 @@ export default function App() {
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.delete('event');
     window.history.replaceState({}, '', newUrl.toString());
-  };
-
-  const handleSaveSettings = async (newSettings: Settings) => {
-    try {
-      await updateSettings(newSettings);
-      setSettings(newSettings);
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-      throw error;
-    }
   };
 
   const currentYear = new Date().getFullYear();
@@ -291,22 +217,38 @@ export default function App() {
     );
   };
 
-  const visibleFooterLinks = settings.footer_links.filter((link) => !shouldHideFooterLink(link.text));
+  const visibleFooterLinks = FOOTER_LINKS.filter((link) => !shouldHideFooterLink(link.text));
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     setVisibleCount((count) => Math.min(count + 20, filteredEvents.length));
-  };
+  }, [filteredEvents.length]);
 
-  const handleTopVisibleMonthChange = (month: Date) => {
+  const handleTopVisibleMonthChange = useCallback((month: Date) => {
     setActiveMonth(new Date(month.getFullYear(), month.getMonth(), 1));
-  };
+  }, []);
 
-  const handleCalendarMonthChange = (month: Date) => {
+  const handleCalendarMonthChange = useCallback((month: Date) => {
     setActiveMonth(new Date(month.getFullYear(), month.getMonth(), 1));
+  }, []);
+
+  const handleScrollToDayComplete = useCallback(() => {
+    setScrollToDay(null);
+  }, []);
+
+  const handleCalendarDayWithEventsClick = (date: Date) => {
+    const idx = filteredEvents.findIndex(
+      (e) =>
+        e.startDate.getFullYear() === date.getFullYear() &&
+        e.startDate.getMonth() === date.getMonth() &&
+        e.startDate.getDate() === date.getDate(),
+    );
+    if (idx < 0) return;
+    setVisibleCount((c) => Math.max(c, idx + 1));
+    setScrollToDay(new Date(date.getFullYear(), date.getMonth(), date.getDate()));
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground geometric-bg">
+    <div className="flex min-h-screen flex-col bg-background text-foreground geometric-bg">
       {/* Error Toast */}
       {error && (
         <div className="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded shadow z-50">
@@ -320,32 +262,39 @@ export default function App() {
         </div>
       )}
 
-      <div className="flex justify-center px-6 pt-10 pb-8">
-        <div className="w-full max-w-6xl p-6">
-          <div className="mb-6 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col px-6 pt-10 pb-8">
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col p-6">
+          <div className="mb-6 shrink-0 pb-4">
             <h1 className="text-4xl font-semibold tracking-tight">
               Central VA <span className="text-fuchsia-600">Events</span>
             </h1>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-            <div className="lg:sticky lg:top-6 lg:self-start">
+          {/*
+            Embla’s vertical viewport must have a definite height; % / max-h-full often never resolve here, so the
+            track grows to all slides and the page becomes extremely tall. Use a fixed vh/rem cap instead of inheriting.
+          */}
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
+            <div className="min-h-0 lg:sticky lg:top-6 lg:self-start">
               <Calendar
                 events={filteredEvents}
                 displayMonth={activeMonth}
                 onDisplayMonthChange={handleCalendarMonthChange}
+                onDayWithEventsClick={handleCalendarDayWithEventsClick}
               />
             </div>
 
-            <div>
+            <div className="flex h-[min(34rem,calc(100dvh_-_9.5rem))] shrink-0 flex-col overflow-hidden sm:h-[min(36rem,calc(100dvh_-_10rem))] lg:h-[min(38rem,calc(100dvh_-_11rem))]">
               <EventList
                 events={visibleEvents}
-                onEventClick={handleViewEvent}
+                accentSourceEvents={filteredEvents}
                 searchQuery={searchQuery}
                 onSearchQueryChange={setSearchQuery}
                 hasMore={hasMore}
                 onLoadMore={handleLoadMore}
                 onTopVisibleMonthChange={handleTopVisibleMonthChange}
+                scrollToDay={scrollToDay}
+                onScrollToDayComplete={handleScrollToDayComplete}
               />
             </div>
           </div>
@@ -353,7 +302,7 @@ export default function App() {
       </div>
 
       {/* Footer Section - Below main content */}
-      <div className="py-8 text-center">
+      <div className="shrink-0 py-8 text-center">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 max-w-5xl mx-auto px-6">
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span>
@@ -379,13 +328,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Event Details Modal */}
-      <EventDetailsModal
-        isOpen={isEventDetailsOpen}
-        onClose={handleCloseEventDetails}
-        event={viewingEvent}
-      />
-
       {/* Event Edit/Create Modal with Error Boundary */}
       <ErrorBoundary>
         <EventModal
@@ -397,14 +339,6 @@ export default function App() {
           selectedDate={selectedDate}
         />
       </ErrorBoundary>
-
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        onSave={handleSaveSettings}
-        currentSettings={settings}
-      />
     </div>
   );
 }

@@ -2,11 +2,14 @@ import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import type { Event } from '../types';
+import { getScheduleAccentColor } from '../utils/scheduleAccent';
 
 interface CalendarProps {
   events: Event[];
   displayMonth?: Date;
   onDisplayMonthChange?: (month: Date) => void;
+  /** When set, days that have events become clickable to focus that day in the event list. */
+  onDayWithEventsClick?: (date: Date) => void;
 }
 
 const WEEK_DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
@@ -15,19 +18,25 @@ function monthStart(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-export function Calendar({ events, displayMonth, onDisplayMonthChange }: CalendarProps) {
+export function Calendar({ events, displayMonth, onDisplayMonthChange, onDayWithEventsClick }: CalendarProps) {
   const [internalMonth, setInternalMonth] = useState(() => monthStart(new Date()));
   const activeMonth = displayMonth ? monthStart(displayMonth) : internalMonth;
 
+  /** Events per local calendar day in the active month (same `events` order as accent lookup). */
   const eventsByDay = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, Event[]>();
     for (const event of events) {
       const date = new Date(event.startDate);
       if (date.getFullYear() !== activeMonth.getFullYear() || date.getMonth() !== activeMonth.getMonth()) {
         continue;
       }
       const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-      map.set(key, (map.get(key) ?? 0) + 1);
+      const list = map.get(key) ?? [];
+      list.push(event);
+      map.set(key, list);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
     }
     return map;
   }, [events, activeMonth]);
@@ -61,22 +70,9 @@ export function Calendar({ events, displayMonth, onDisplayMonthChange }: Calenda
   return (
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="mb-4 grid grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] items-center gap-x-2">
-        <div className="flex items-center gap-1.5">
-          <Button aria-label="Previous month" variant="ghost" size="icon" className="shrink-0" onClick={goPrev}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          {!isViewingCurrentMonth && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 shrink-0 px-2 text-xs font-medium"
-              onClick={goToToday}
-            >
-              Today
-            </Button>
-          )}
-        </div>
+        <Button aria-label="Previous month" variant="ghost" size="icon" className="shrink-0" onClick={goPrev}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
         <h2 className="min-w-0 text-center text-xl font-medium sm:text-2xl">
           {activeMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </h2>
@@ -102,30 +98,71 @@ export function Calendar({ events, displayMonth, onDisplayMonthChange }: Calenda
           const day = idx + 1;
           const date = new Date(activeMonth.getFullYear(), activeMonth.getMonth(), day);
           const key = `${date.getFullYear()}-${date.getMonth()}-${day}`;
-          const count = eventsByDay.get(key) ?? 0;
+          const dayEvents = eventsByDay.get(key) ?? [];
+          const count = dayEvents.length;
           const isToday =
             date.getFullYear() === today.getFullYear() &&
             date.getMonth() === today.getMonth() &&
             date.getDate() === today.getDate();
 
-          return (
-            <div
-              key={day}
-              className={`relative flex h-10 items-center justify-center rounded text-sm ${
-                isToday ? 'bg-muted font-semibold text-foreground' : 'text-muted-foreground'
-              }`}
+          const dayLabel = date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+          });
+
+          const dots = (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute bottom-0.5 left-1/2 flex max-w-[calc(100%-2px)] -translate-x-1/2 flex-wrap justify-center gap-0.5"
             >
-              {day}
-              {count > 0 && (
+              {dayEvents.map((ev) => (
                 <span
-                  aria-label={`${count} events`}
-                  className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-fuchsia-500"
+                  key={ev.id}
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: getScheduleAccentColor(ev, events) }}
                 />
+              ))}
+            </span>
+          );
+
+          return (
+            <div key={day} className="relative h-10">
+              {count > 0 && onDayWithEventsClick ? (
+                <button
+                  type="button"
+                  onClick={() => onDayWithEventsClick(date)}
+                  aria-label={`${dayLabel}, ${count} event${count === 1 ? '' : 's'}. Show in list.`}
+                  className={`relative flex h-full w-full items-center justify-center rounded text-sm transition-colors hover:bg-muted/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 ${
+                    isToday ? 'bg-muted font-semibold text-foreground' : 'text-muted-foreground'
+                  }`}
+                >
+                  {day}
+                  {dots}
+                </button>
+              ) : (
+                <div
+                  className={`relative flex h-full items-center justify-center rounded text-sm ${
+                    isToday ? 'bg-muted font-semibold text-foreground' : 'text-muted-foreground'
+                  }`}
+                >
+                  {day}
+                  {count > 0 ? dots : null}
+                </div>
               )}
             </div>
           );
         })}
       </div>
+
+      {!isViewingCurrentMonth ? (
+        <div className="mt-4 flex justify-center">
+          <Button type="button" variant="outline" size="sm" className="px-4 text-xs font-medium" onClick={goToToday}>
+            Today
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

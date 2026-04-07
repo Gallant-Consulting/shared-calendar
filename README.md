@@ -10,7 +10,6 @@ A shared event calendar for the Central Virginia startup ecosystem (ESOs - Entre
 - **Time Filters** — Today, Week, Month, Next Month, Quarter, All
 - **Dark Mode** — Toggle between light and dark themes
 - **URL State** — Direct links to events via `?event=<id>` and view switching via `?view=calendar|list`
-- **Admin Settings** — Password-protected settings for site title, description, contact email, footer links
 - **Print** — Print calendar functionality
 
 ## Tech Stack
@@ -32,27 +31,23 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
 **Frontend service modules:**
 
 - `src/services/eventsApi.ts` — Events CRUD service used by the UI (HTTP to `/api/events`, Airtable-backed)
-- `src/services/settingsApi.ts` — Settings service contract used by UI (internals now call `/api/settings`)
+- `src/siteConfig.ts` — Static footer links and other site copy (no API)
 
 **Proxy/API modules:**
 
 - `api/events.ts` — Airtable-backed events endpoint (`GET/POST/PUT/DELETE`)
-- `api/settings.ts` — Airtable-backed settings endpoint (`GET/PUT`)
 - `api/_lib/airtable.ts` — Airtable HTTP helpers + env validation
 - `api/_lib/mappers.ts` — Airtable field mapping and normalization
 
 **Data Flow:**
 
-1. App fetches events and settings through frontend service modules.
-2. Services call same-origin proxy routes (`/api/events`, `/api/settings`).
-3. Proxy authenticates to Airtable using `AIRTABLE_PAT` and `AIRTABLE_BASE_ID`.
-4. Events are mapped from Airtable `Events` table and filtered to approved statuses.
-5. Settings are mapped from Airtable `app_settings` table.
+1. App fetches events through `eventsApi` → same-origin `/api/events`.
+2. The proxy authenticates to Airtable using `AIRTABLE_PAT` and `AIRTABLE_BASE_ID`.
+3. Events are mapped from the Airtable `Events` table and filtered to approved statuses.
 
 **Airtable tables used by runtime:**
 
 - **Events** — `Event ID`, `Status`, `Title`, `Start Date`, `End Date`, `All Day Event`, `Host Group`, `Location`, `Notes`, `Payment Link`, `Image`, `Event URL` (legacy columns such as tags or repeat fields may remain in the base but are not read or written by this app)
-- **app_settings** — `site_title`, `site_description`, `contact_email` (legacy `tags` / `tag_labels` columns are ignored by the app)
 
 ## How to Run
 
@@ -60,7 +55,7 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
 
 - Node.js (latest LTS recommended)
 - npm or yarn
-- Airtable base with required tables/fields
+- Airtable base with the `Events` table and required fields
 - Deployment target that supports API routes/serverless functions
 
 ### Installation
@@ -86,17 +81,16 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
    AIRTABLE_PAT=pat_xxx
    AIRTABLE_BASE_ID=appsiGlVk94JBwqHG
    VITE_API_BASE_URL=
-   VITE_ADMIN_PASSWORD=your-secure-password
    ```
 
-5. Ensure your Airtable base has `Events` and `app_settings` tables with the mapped fields.
+5. Ensure your Airtable base has the `Events` table with the mapped fields.
 
 6. Start the development server:
    ```bash
    npm run dev
    ```
 
-   Local development now mounts `/api/events` and `/api/settings` through Vite middleware that calls the existing handlers in `api/`. Keep `AIRTABLE_PAT` and `AIRTABLE_BASE_ID` set in `.env` so these local API calls can read/write Airtable.
+   Local development mounts `/api/events` through Vite middleware that calls `api/events.ts`. Keep `AIRTABLE_PAT` and `AIRTABLE_BASE_ID` set in `.env` so local API calls can reach Airtable.
 
 7. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
@@ -116,7 +110,6 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
 | `AIRTABLE_PAT` | Airtable Personal Access Token (server-only) |
 | `AIRTABLE_BASE_ID` | Airtable base ID (server-only) |
 | `VITE_API_BASE_URL` | Optional frontend API base URL override (defaults to same-origin) |
-| `VITE_ADMIN_PASSWORD` | Password required to access the Settings modal |
 
 ## Project Structure
 
@@ -125,22 +118,19 @@ src/
 ├── main.tsx              # Entry point
 ├── App.tsx               # Main application
 ├── types.ts              # TypeScript type definitions
+├── siteConfig.ts         # Static footer links / site copy
 ├── components/
 │   ├── Calendar.tsx              # Month calendar grid
 │   ├── EventList.tsx             # List view
 │   ├── EventListCompact.tsx      # Compact list variant
 │   ├── EventModal.tsx            # Create/edit event form
-│   ├── EventDetailsModal.tsx     # View event details
-│   ├── SettingsModal.tsx         # Admin settings
 │   ├── FloatingNewEventButton.tsx
 │   └── ui/                       # shadcn/ui components
 └── services/
-    ├── eventsApi.ts       # Events service (calls /api/events)
-    └── settingsApi.ts     # Settings service (calls /api/settings)
+    └── eventsApi.ts       # Events service (calls /api/events)
 
 api/
 ├── events.ts              # Airtable events proxy endpoint
-├── settings.ts            # Airtable settings proxy endpoint
 └── _lib/
     ├── airtable.ts        # Airtable HTTP/env helpers
     └── mappers.ts         # Airtable <-> app mapping logic
@@ -166,7 +156,7 @@ Deploy on a platform that supports API routes/functions (for the proxy), such as
 - Vercel
 - Railway (with server runtime)
 
-Configure `AIRTABLE_PAT`, `AIRTABLE_BASE_ID`, and `VITE_ADMIN_PASSWORD` in host environment settings. `AIRTABLE_PAT` and `AIRTABLE_BASE_ID` must be server-only.
+Configure `AIRTABLE_PAT` and `AIRTABLE_BASE_ID` in host environment settings. They must be server-only.
 
 ## Related Documentation
 

@@ -47,7 +47,6 @@ describe('EventList', () => {
     render(
       <EventList
         events={events}
-        onEventClick={vi.fn()}
         searchQuery=""
         onSearchQueryChange={onSearchQueryChange}
         hasMore={false}
@@ -61,7 +60,7 @@ describe('EventList', () => {
     expect(onSearchQueryChange).toHaveBeenCalledWith('workshop');
   });
 
-  it('renders only the passed visible events in a vertical list', () => {
+  it('renders only the passed visible events in a scrollable list', () => {
     const events: Event[] = [
       mkEvent({
         id: 'e1',
@@ -78,20 +77,51 @@ describe('EventList', () => {
     ];
 
     render(
-      <EventList
-        events={[events[0]]}
-        onEventClick={vi.fn()}
-        searchQuery=""
-        onSearchQueryChange={vi.fn()}
-        hasMore={true}
-        onLoadMore={vi.fn()}
-      />,
+      <div className="flex h-[480px] flex-col">
+        <EventList
+          events={[events[0]]}
+          searchQuery=""
+          onSearchQueryChange={vi.fn()}
+          hasMore={true}
+          onLoadMore={vi.fn()}
+        />
+      </div>,
     );
 
     expect(screen.getByText('Earlier')).toBeInTheDocument();
     expect(screen.queryByText('Later')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /previous slide/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /next slide/i })).not.toBeInTheDocument();
+  });
+
+  it('renders multiple events when all are passed in', () => {
+    const events: Event[] = [
+      mkEvent({
+        id: 'e1',
+        title: 'Earlier',
+        startDate: new Date(2026, 5, 15, 9, 0),
+        endDate: new Date(2026, 5, 15, 10, 30),
+      }),
+      mkEvent({
+        id: 'e2',
+        title: 'Later',
+        startDate: new Date(2026, 5, 16, 14, 0),
+        endDate: new Date(2026, 5, 16, 15, 0),
+      }),
+    ];
+
+    render(
+      <div className="flex h-[480px] flex-col">
+        <EventList
+          events={events}
+          searchQuery=""
+          onSearchQueryChange={vi.fn()}
+          hasMore={false}
+          onLoadMore={vi.fn()}
+        />
+      </div>,
+    );
+
+    expect(screen.getByText('Earlier')).toBeInTheDocument();
+    expect(screen.getByText('Later')).toBeInTheDocument();
   });
 
   it('calls onLoadMore when manual load-more control is clicked', () => {
@@ -106,14 +136,15 @@ describe('EventList', () => {
     const onLoadMore = vi.fn();
 
     render(
-      <EventList
-        events={events}
-        onEventClick={vi.fn()}
-        searchQuery=""
-        onSearchQueryChange={vi.fn()}
-        hasMore={true}
-        onLoadMore={onLoadMore}
-      />,
+      <div className="flex h-[480px] flex-col">
+        <EventList
+          events={events}
+          searchQuery=""
+          onSearchQueryChange={vi.fn()}
+          hasMore={true}
+          onLoadMore={onLoadMore}
+        />
+      </div>,
     );
 
     const loadMoreButtons = screen.getAllByRole('button', { name: /load more events/i });

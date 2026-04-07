@@ -1,13 +1,10 @@
 import { useMemo, useState } from 'react';
 import { EventList } from './components/EventList';
-import { EventDetailsModal } from './components/EventDetailsModal';
 import type { Event, FilterType } from './types';
 import { eventMatchesQuery } from './utils/eventSearch';
 
 export default function EmbedApp() {
   const [events] = useState<Event[]>([]);
-  const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
-  const [viewingEvent, setViewingEvent] = useState<Event | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const filterEvents = (eventList: Event[], filter: FilterType): Event[] => {
@@ -82,31 +79,14 @@ export default function EmbedApp() {
     return filterEvents(events, 'week');
   }, [events, searchQuery]);
 
-  const handleViewEvent = (event: Event) => {
-    setViewingEvent(event);
-    setIsEventDetailsOpen(true);
-  };
-
-  const handleCloseEventDetails = () => {
-    setIsEventDetailsOpen(false);
-    setViewingEvent(null);
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
       <EventList
         events={listEvents}
-        onEventClick={handleViewEvent}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         hasMore={false}
         onLoadMore={() => {}}
-      />
-
-      <EventDetailsModal
-        isOpen={isEventDetailsOpen}
-        onClose={handleCloseEventDetails}
-        event={viewingEvent}
       />
     </div>
   );

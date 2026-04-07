@@ -3,11 +3,9 @@ import react from '@vitejs/plugin-react';
 import { loadEnv } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import eventsHandler from './api/events';
-import settingsHandler from './api/settings';
 
 const API_ROUTES: Record<string, (request: Request) => Promise<Response>> = {
   '/api/events': eventsHandler,
-  '/api/settings': settingsHandler,
 };
 
 async function readRawBody(req: IncomingMessage): Promise<Uint8Array | undefined> {

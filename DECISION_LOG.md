@@ -1,5 +1,28 @@
 # Decision Log
 
+## 2026-04-06 - Calendar day dots match schedule accent colors
+
+### Context
+Month cells used a single fuchsia dot for “has events,” while list cards used a rotating pink / amber / cyan accent tied to position in the grouped schedule.
+
+### Decision
+- Add `getScheduleAccentColor` in `src/utils/scheduleAccent.ts` using the same month-group + insertion order as `EventList`.
+- Pass `accentSourceEvents={filteredEvents}` into `EventList` so card colors stay aligned with the full filtered set when the list is paginated (“load more”).
+- Render one dot per event on a day (same colors as the cards); multiple events stack as small dots in a row.
+
+## 2026-04-06 - Remove event details modal
+
+### Context
+Schedule list cards were wrapped in a click handler that opened `EventDetailsModal`, so clicks on non-link areas (including the “Hosted by …” line) triggered the modal. Event content is already visible on the card, and the title can link out when `event.link` is set.
+
+### Decision
+- Remove `EventDetailsModal` and all wiring (`onEventClick` on `EventList` / `ScheduleEventCard`, `?event=` deep-link behavior that opened the details modal, related `App` / `EmbedApp` state).
+- Cards are no longer globally clickable; interactive elements remain the optional title link, map link for address-like locations, and images.
+
+### Tradeoffs
+- No full-screen detail view; users rely on the card body and external links.
+- Bookmarks with `?event=` no longer open a modal (URL cleanup on navigation was tied to that flow).
+
 ## 2026-03-19 - Default Calendar To Current Date And Remove Seed Data
 
 ### Context
@@ -135,3 +158,55 @@ The codebase still referenced Google Sheets naming for the events HTTP client, a
 ### Tradeoffs
 - Existing Airtable tag/recurrence columns are no longer surfaced; manual base cleanup is optional.
 - Calendar grid month/day bucketing still uses the browser’s local date for cell keys (unchanged); list and modal formatting use Eastern as documented.
+
+## 2026-04-06 - Remove Airtable-backed app settings
+
+### Context
+Site settings were loaded from `GET /api/settings` (Airtable `app_settings`). On static or misconfigured hosts the route returned HTML (SPA fallback), triggering non-JSON warnings. Product need for remote-editable settings was minimal.
+
+### Decision
+- Remove `api/settings.ts`, the `/api/settings` dev route, `src/services/settingsApi.ts`, and the unused `SettingsModal` UI.
+- Keep footer links and related copy in `src/siteConfig.ts` as static exports.
+
+### Rationale
+- Eliminates a failing network path and deployment coupling for data we do not need to store in Airtable.
+- Fewer env vars and less server surface area.
+
+### Tradeoffs
+- Changing footer links or marketing copy requires a code change instead of an Airtable row.
+
+## 2026-04-06 - Event list: vertical Embla carousel and main/footer flex layout
+
+### Context
+Scroll-snap and overflow on the event column still clipped cards and a `100vh`-based column height let the page grow below the footer.
+
+### Decision
+- Render visible events in `EventList` with shadcn/Embla `Carousel` (`orientation="vertical"`), one slide per event; month headings on first event of each month; sync calendar month from Embla `select`; `scrollToDay` uses `api.scrollTo(index)`; optional load-more when the user reaches the last slide (guarded so single-slide lists do not auto-fetch on mount); manual “Load more” and IntersectionObserver sentinel retained.
+- Extend `carousel.tsx` with vertical viewport height (`h-full min-h-0`), column inner `h-full`, ArrowUp/ArrowDown keyboard handling, and `min-h-0` on vertical items.
+- Structure the app shell as `min-h-screen flex flex-col` with a `flex-1 min-h-0` main region and `shrink-0` footer; size the event column with grid stretch and `min-h-*` floors instead of `calc(100vh - …)` alone.
+
+### Rationale
+- Embla gives stable snap-to-slide behavior and avoids layout overflow quirks from nested scroll areas.
+- Flex layout allocates remaining height between header and footer so the document does not extend past the footer when the list is tall.
+
+### Tradeoffs
+- Very tall cards are clipped per slide (`overflow-hidden`) so vertical gestures go to Embla; users move between events via swipe, keyboard, or the on-card nav buttons.
+
+### Follow-up (same day)
+- Embla’s default `containScroll: 'trimSnaps'` can collapse to **one scroll snap** when total slide height fits in the viewport (`contentSize <= viewSize`), which made **only the first event reachable**. Set **`containScroll: false`** so each slide keeps its own snap, and use **stable keys** `id + index` in case duplicate `Event ID` values exist in source data. Added **Previous/Next** controls and `touch-pan-y` on the track; removed nested `overflow-y-auto` on slides so vertical drags reach Embla.
+
+### Follow-up — revert to plain scroll list
+- **Removed** the vertical Embla carousel from `EventList` in favor of a **plain `overflow-y-auto` list** (month groups, scroll-linked calendar month, day anchors, load-more). Variable-height cards and scroll/wheel interaction behaved poorly with Embla for this UI.
+- The scroll region uses **`border-b border-border`** so the bottom edge of the clipping area is visible without wrapping the whole column in a box border.
+
+## 2026-04-06 - Schedule list card layout and optional hero image
+
+### Context
+List cards used a three-dot menu, left-aligned time/date, and small title. We wanted alignment closer to a reference: title + optional host on the left, date and time stacked on the right, optional image under the title, title linking to the public event URL.
+
+### Decision
+- **`ScheduleEventCard`**: Remove the overflow menu; top row is **title** (link to `event.link` when present, larger type) + optional **Hosted by** line on the left; **day number**, **month**, and **time** (`ALL DAY` or Eastern range) on the right; **notes** below; **rounded image** below the title when `event.imageUrl` is set; footer row is **location** only (map link when address-like).
+- **`Event.imageUrl`**: Mapped in `api/_lib/mappers` from Airtable **`Image URL`** (plain https URL), then **`Image`**, **`Flyer`**, and **`Cover Image`**, each of which may be either a **plain https URL string** (e.g. long text / URL field) or the **first attachment** in Airtable’s attachment shape.
+
+### Tradeoffs
+- Event URL is both the card title link and the prior “open external” menu action; there is no in-card “copy link” from the menu anymore (users can copy from the browser).
