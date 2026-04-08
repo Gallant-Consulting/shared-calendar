@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-04-07 - Event promo images: `contain` + aspect-based max height
+
+### Context
+Schedule cards used `object-cover` and a fixed `max-h-56`, which cropped varied banner/portrait/flyer assets unpredictably.
+
+### Decision
+- Add **`getPromoImageMaxHeightClass(ratio)`** in **`src/utils/eventPromoImage.ts`** (ratio = width/height): very wide (≥2) → shorter cap; wide 1.25–2 → `max-h-64`; square-ish 0.85–1.25 → `max-h-56`; portrait (&lt;0.85) → `max-h-96`.
+- **`EventPromoImage`**: **`object-contain`**, default **`max-h-56`** until **`onLoad`**, then tier; portrait tier **`max-h-80`** (was 96) to limit huge verticals. Outer **`flex justify-center`**, inner **`inline-block max-w-full`** so the bordered frame **hugs** the image width (avoids full-width pillarboxing on portraits). **`w-auto`** on the **`img`**.
+- **`ScheduleEventCard`** uses **`EventPromoImage`** instead of raw **`ImageWithFallback`** + cover.
+
+### Tradeoffs
+- Full image visible; letterboxing possible. Slight layout shift when max-height class updates after load.
+
 ## 2026-04-07 - Dark mode disabled
 
 ### Context

@@ -1,6 +1,6 @@
 import { MapPin } from 'lucide-react';
 import type { Event } from '../types';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import { EventPromoImage } from './EventPromoImage';
 import { cn } from './ui/utils';
 import {
   formatEventTimeEastern,
@@ -84,14 +84,7 @@ export function ScheduleEventCard({ event, accentColor }: ScheduleEventCardProps
       </div>
 
       {event.imageUrl ? (
-        <div className="mb-4 w-full overflow-hidden rounded-lg border border-border/60 bg-muted/30">
-          <ImageWithFallback
-            src={event.imageUrl}
-            alt={event.title}
-            className="max-h-56 w-full object-cover"
-            loading="lazy"
-          />
-        </div>
+        <EventPromoImage src={event.imageUrl} alt={event.title} className="mb-4 w-full" loading="lazy" />
       ) : null}
 
       <p
@@ -103,8 +96,8 @@ export function ScheduleEventCard({ event, accentColor }: ScheduleEventCardProps
         {event.notes ?? 'No description'}
       </p>
 
-      <div className="mt-auto border-t border-border/60 pt-3">
-        {hasLocation ? (
+      {hasLocation ? (
+        <div className="mt-auto pt-3">
           <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="size-4 shrink-0" style={accentStyle} aria-hidden />
             {isLikelyStreetAddress(locationLabel) ? (
@@ -120,10 +113,8 @@ export function ScheduleEventCard({ event, accentColor }: ScheduleEventCardProps
               <span className="truncate">{locationLabel}</span>
             )}
           </div>
-        ) : (
-          <span className="text-sm text-muted-foreground/60">No location</span>
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

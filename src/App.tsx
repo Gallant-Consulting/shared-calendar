@@ -282,18 +282,19 @@ export default function App() {
             </h1>
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-6 lg:h-full lg:min-h-0 lg:grid-cols-[300px_minmax(0,1fr)] lg:grid-rows-1">
-            <div className="flex min-h-0 flex-col justify-start gap-0 lg:sticky lg:top-4">
+          {/* Mobile: header → search/list → email → footer. Desktop: calendar + email | list. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden lg:grid lg:h-full lg:min-h-0 lg:grid-cols-[300px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-6 lg:overflow-hidden">
+            <aside className="hidden w-full min-w-0 shrink-0 flex-col gap-0 lg:sticky lg:top-4 lg:col-start-1 lg:row-start-1 lg:flex lg:max-w-[300px] lg:self-start">
               <Calendar
                 events={filteredEvents}
                 displayMonth={activeMonth}
                 onDisplayMonthChange={handleCalendarMonthChange}
                 onDayWithEventsClick={handleCalendarDayWithEventsClick}
               />
-              <EmailSignup webhookUrl={SUBSCRIBE_WEBHOOK_URL} />
-            </div>
+              <EmailSignup webhookUrl={SUBSCRIBE_WEBHOOK_URL} className="mt-4" />
+            </aside>
 
-            <div className="flex min-h-0 flex-col overflow-hidden">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:col-start-2 lg:row-start-1 lg:h-full lg:min-h-0">
               <EventList
                 events={filteredEvents}
                 accentSourceEvents={filteredEvents}
@@ -308,6 +309,10 @@ export default function App() {
                 scrollToDayBehavior={scrollToDayBehavior}
                 onScrollToDayComplete={handleScrollToDayComplete}
               />
+            </div>
+
+            <div className="shrink-0 lg:hidden">
+              <EmailSignup webhookUrl={SUBSCRIBE_WEBHOOK_URL} className="mt-0" />
             </div>
           </div>
         </div>

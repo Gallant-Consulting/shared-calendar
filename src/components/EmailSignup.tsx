@@ -1,11 +1,14 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useId, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { cn } from './ui/utils';
 import { subscribeByEmail } from '../services/subscribeApi';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
-export function EmailSignup({ webhookUrl }: { webhookUrl: string }) {
+export function EmailSignup({ webhookUrl, className }: { webhookUrl: string; className?: string }) {
+  const inputId = useId();
+  const errorId = `${inputId}-error`;
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<Status>('idle');
 
@@ -25,8 +28,13 @@ export function EmailSignup({ webhookUrl }: { webhookUrl: string }) {
   };
 
   return (
-    <div className="mt-4 w-full shrink-0 rounded-lg border border-border bg-card/80 p-3 shadow-sm">
-      <p className="mt-2 mb-4 text-xs font-medium text-foreground">Get upcoming events in your inbox</p>
+    <div
+      className={cn(
+        'mt-4 w-full shrink-0 rounded-lg border border-border bg-card/80 p-3 shadow-sm',
+        className,
+      )}
+    >
+      <p className="mb-4 text-xs font-medium text-foreground">Get upcoming events in your inbox</p>
 
       {status === 'success' ? (
         <p className="text-xs text-muted-foreground" role="status">
@@ -34,11 +42,11 @@ export function EmailSignup({ webhookUrl }: { webhookUrl: string }) {
         </p>
       ) : (
         <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-2">
-          <label htmlFor="event-email-signup" className="sr-only">
+          <label htmlFor={inputId} className="sr-only">
             Email for event list
           </label>
           <Input
-            id="event-email-signup"
+            id={inputId}
             type="email"
             name="email"
             autoComplete="email"
@@ -50,11 +58,11 @@ export function EmailSignup({ webhookUrl }: { webhookUrl: string }) {
               if (status === 'error') setStatus('idle');
             }}
             aria-invalid={status === 'error'}
-            aria-describedby={status === 'error' ? 'event-email-signup-error' : undefined}
+            aria-describedby={status === 'error' ? errorId : undefined}
             className="text-sm"
           />
           {status === 'error' ? (
-            <p id="event-email-signup-error" className="text-[11px] text-destructive" role="alert">
+            <p id={errorId} className="text-[11px] text-destructive" role="alert">
               Couldn&apos;t subscribe. Try again.
             </p>
           ) : null}
