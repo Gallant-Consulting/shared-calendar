@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Event } from '../types';
-import { getScheduleAccentColor, SCHEDULE_EVENT_ACCENT_COLORS } from './scheduleAccent';
+import {
+  getScheduleAccentColor,
+  SCHEDULE_EVENT_ACCENT_COLORS,
+  SCHEDULE_PRIMARY_ACCENT,
+} from './scheduleAccent';
 
 function ev(
   id: string,
@@ -8,6 +12,12 @@ function ev(
 ): Event {
   return { id, title: id, startDate: start, endDate: start, isAllDay: false };
 }
+
+describe('schedule accents', () => {
+  it('uses the first rotation color as primary chrome accent', () => {
+    expect(SCHEDULE_PRIMARY_ACCENT).toBe(SCHEDULE_EVENT_ACCENT_COLORS[0]);
+  });
+});
 
 describe('getScheduleAccentColor', () => {
   it('cycles pink, amber, cyan in month-group order', () => {

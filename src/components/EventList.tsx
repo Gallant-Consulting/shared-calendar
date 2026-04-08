@@ -19,11 +19,18 @@ interface EventListProps {
   /** When true, infinite scroll / button avoid duplicate fetches. */
   loadingMore?: boolean;
   onTopVisibleMonthChange?: (month: Date) => void;
+  /**
+   * When false, the list does not report the top-visible month (skips jumping the calendar before an initial `scrollToDay`).
+   * @default true
+   */
+  syncVisibleMonthToParent?: boolean;
   /** When set, constrains list height (e.g. tests). When omitted, list fills the parent flex column. */
   scrollContainerHeight?: string;
   /** When set, scrolls the list so the first event on this local calendar day is visible. */
   scrollToDay?: Date | null;
   onScrollToDayComplete?: () => void;
+  /** Passed to `scrollInto` alignment; use `auto` for initial positioning so month sync is accurate. */
+  scrollToDayBehavior?: ScrollBehavior;
 }
 
 function monthKey(date: Date): string {
@@ -56,9 +63,11 @@ export function EventList({
   onLoadMore,
   loadingMore = false,
   onTopVisibleMonthChange,
+  syncVisibleMonthToParent = true,
   scrollContainerHeight,
   scrollToDay = null,
   onScrollToDayComplete,
+  scrollToDayBehavior = 'smooth',
 }: EventListProps) {
   const accentLookupEvents = accentSourceEvents ?? events;
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -116,7 +125,7 @@ export function EventList({
   }, [hasMore, loadingMore, onLoadMore]);
 
   useEffect(() => {
-    if (!onTopVisibleMonthChange || groupedEvents.length === 0) return;
+    if (!onTopVisibleMonthChange || !syncVisibleMonthToParent || groupedEvents.length === 0) return;
     const root = scrollRootRef.current;
     if (!root) return;
 
@@ -141,7 +150,7 @@ export function EventList({
     detectTopMonth();
     root.addEventListener('scroll', detectTopMonth);
     return () => root.removeEventListener('scroll', detectTopMonth);
-  }, [groupedEvents, onTopVisibleMonthChange]);
+  }, [groupedEvents, onTopVisibleMonthChange, syncVisibleMonthToParent]);
 
   useEffect(() => {
     if (groupedEvents.length === 0) return;
@@ -172,7 +181,7 @@ export function EventList({
       const container = scrollRootRef.current;
       const el = dayAnchorRefs.current[key];
       if (container && el) {
-        scrollElementIntoContainer(container, el, 'smooth');
+        scrollElementIntoContainer(container, el, scrollToDayBehavior);
         onScrollToDayComplete?.();
         return;
       }
@@ -180,13 +189,13 @@ export function EventList({
         const c = scrollRootRef.current;
         const el2 = dayAnchorRefs.current[key];
         if (c && el2) {
-          scrollElementIntoContainer(c, el2, 'smooth');
+          scrollElementIntoContainer(c, el2, scrollToDayBehavior);
         }
         onScrollToDayComplete?.();
       });
     };
     tryScroll();
-  }, [scrollToDay, events, onScrollToDayComplete]);
+  }, [scrollToDay, events, onScrollToDayComplete, scrollToDayBehavior]);
 
   const searchHasValue = searchQuery.trim().length > 0;
 
@@ -209,8 +218,8 @@ export function EventList({
           id="event-list-search"
           value={searchQuery}
           onChange={(e) => onInputChange(e.target.value)}
-          placeholder="Search for an event"
-          aria-label="Search for an event"
+          placeholder="Search for an event or group"
+          aria-label="Search for an event or group"
           className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
         {searchHasValue ? (

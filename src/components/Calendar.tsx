@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import type { Event } from '../types';
-import { getScheduleAccentColor } from '../utils/scheduleAccent';
+import { getScheduleAccentColor, SCHEDULE_PRIMARY_ACCENT } from '../utils/scheduleAccent';
 
 interface CalendarProps {
   events: Event[];
@@ -70,18 +70,35 @@ export function Calendar({ events, displayMonth, onDisplayMonthChange, onDayWith
   return (
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="mb-4 grid grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] items-center gap-x-2">
-        <Button aria-label="Previous month" variant="ghost" size="icon" className="shrink-0" onClick={goPrev}>
+        <Button
+          aria-label="Previous month"
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          style={{ color: SCHEDULE_PRIMARY_ACCENT }}
+          onClick={goPrev}
+        >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <h2 className="min-w-0 text-center text-xl font-medium sm:text-2xl">
           {activeMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </h2>
-        <Button aria-label="Next month" variant="ghost" size="icon" className="shrink-0 justify-self-end" onClick={goNext}>
+        <Button
+          aria-label="Next month"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 justify-self-end"
+          style={{ color: SCHEDULE_PRIMARY_ACCENT }}
+          onClick={goNext}
+        >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 gap-y-1 text-center text-[11px] font-medium text-muted-foreground">
+      <div
+        className="grid grid-cols-7 gap-y-1 text-center text-[11px] font-medium"
+        style={{ color: SCHEDULE_PRIMARY_ACCENT }}
+      >
         {WEEK_DAYS.map((day) => (
           <div key={day} className="py-1">
             {day}

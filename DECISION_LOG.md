@@ -1,5 +1,45 @@
 # Decision Log
 
+## 2026-04-07 - Dark mode disabled
+
+### Context
+The app followed OS dark mode via `prefers-color-scheme` and toggled `html.dark`. Product goal is light UI only for now.
+
+### Decision
+- Remove **`isDarkMode`** state, system **`matchMedia`** listener, and theme **`useEffect`** from **`App`**; on mount **`classList.remove('dark')`** so no stray class persists.
+- Set **`color-scheme: light`** on **`html`** in **`globals.css`** so native controls and scrollbars stay light.
+- Delete unused **`.dark` / `html.dark`** theme variable blocks and **`.dark .geometric-bg`** from **`globals.css`**; remove **`@custom-variant dark`**.
+- Keep **`tailwind.config.js`** as **`darkMode: 'class'`** so **`dark:`** utilities only apply under **`.dark`** (never set) — avoids Tailwind v3 treating **`darkMode: false`** like **`media`** (which would still follow OS).
+- **`Toaster` (sonner):** **`theme="light"`**, drop **`next-themes`**; remove **`next-themes`** dependency.
+
+## 2026-04-07 - Email signup for upcoming events (GET webhook)
+
+### Context
+Users can subscribe to an emailed list of upcoming events from the main calendar column.
+
+### Decision
+- Add **`EmailSignup`** under the left **`Calendar`**, calling **`GET`** `{webhookUrl}?email={encoded}` via **`fetch`** (`subscribeByEmail` in `src/services/subscribeApi.ts`).
+- Default webhook URL in **`siteConfig`** (`SUBSCRIBE_WEBHOOK_URL`), overridable with **`VITE_SUBSCRIBE_WEBHOOK_URL`** (see `env.example`). Production default: Railway **`/webhook/subscribe`**.
+- On HTTP **2xx**, show inline success copy; on failure, show a short error and allow retry.
+
+### Tradeoffs
+- **GET** for subscription is not ideal for semantics or caching; chosen to match the existing webhook contract.
+- **CORS** must allow the app origin on the webhook host; if blocked, the flow would need a same-origin proxy or form navigation.
+
+## 2026-04-07 - Initial list scroll near “today”; gate calendar month sync
+
+### Context
+The event list starts at `scrollTop = 0`, so the earliest loaded month is “nearest” to the top. `EventList` calls `onTopVisibleMonthChange`, which drove `activeMonth` to that past month. A separate `useEffect` also set `activeMonth` from the first filtered event, reinforcing the same jump.
+
+### Decision
+- Remove the effect that synced `activeMonth` from `filteredEvents[0]` (it also fought search and pagination UX).
+- After the first load completes (no active search), compute an anchor day with **`pickInitialListScrollDay`** in `src/utils/initialListScroll.ts`: first event whose **local** start day is on/after today, else first event still **ongoing** (`endDate >=` local start of today), else the first row.
+- Set **`scrollToDay`** once; use **`scrollToDayBehavior: 'auto'`** for that pass so layout and month detection are stable, then switch to **`smooth`** for calendar-driven scrolls.
+- Add **`syncVisibleMonthToParent`** on **`EventList`** (default `true`). **`App`** keeps it `false` until `onScrollToDayComplete` or when there is nothing to scroll (empty list, or search active on first paint).
+
+### Tradeoffs
+- “Today” for anchoring uses the **browser’s local calendar**, matching **`dayKeyLocal`** in **`EventList`**, not US Eastern display strings.
+
 ## 2026-04-07 - Paginated GET /api/events + 30-day End Date window
 
 ### Context

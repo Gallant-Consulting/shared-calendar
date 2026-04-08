@@ -12,7 +12,10 @@ import {
   deleteEvent as apiDeleteEvent,
 } from './services/eventsApi';
 import { eventMatchesQuery } from './utils/eventSearch';
-import { FOOTER_LINKS } from './siteConfig';
+import { pickInitialListScrollDay } from './utils/initialListScroll';
+import { SCHEDULE_PRIMARY_ACCENT } from './utils/scheduleAccent';
+import { FOOTER_LINKS, SUBSCRIBE_WEBHOOK_URL } from './siteConfig';
+import { EmailSignup } from './components/EmailSignup';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error?: Error}> {
@@ -53,13 +56,6 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 }
 
 export default function App() {
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Keep dark mode behavior but hide the toggle icon.
-    // We still follow OS/system preference so dark mode remains usable.
-    return typeof window !== 'undefined' && window.matchMedia
-      ? window.matchMedia('(prefers-color-scheme: dark)').matches
-      : false;
-  });
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +68,10 @@ export default function App() {
   const loadMoreInFlight = useRef(false);
   const [activeMonth, setActiveMonth] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [scrollToDay, setScrollToDay] = useState<Date | null>(null);
+  /** False until initial list scroll (or no-op) finishes so the calendar is not driven by scrollTop=0 month. */
+  const [listScrollSyncsCalendarMonth, setListScrollSyncsCalendarMonth] = useState(false);
+  const [scrollToDayBehavior, setScrollToDayBehavior] = useState<ScrollBehavior>('auto');
+  const initialListAnchorAppliedRef = useRef(false);
 
   // Handle browser back/forward: clear edit modal when `event` query is removed from the URL.
   useEffect(() => {
@@ -90,29 +90,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Apply theme class to document
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
-  // Follow system dark mode preference (toggle icon intentionally hidden).
-  useEffect(() => {
-    const mql = window.matchMedia?.('(prefers-color-scheme: dark)');
-    if (!mql) return;
-
-    const handleChange = () => setIsDarkMode(mql.matches);
-    handleChange();
-
-    if (mql.addEventListener) mql.addEventListener('change', handleChange);
-    else mql.addListener(handleChange);
-
-    return () => {
-      if (mql.removeEventListener) mql.removeEventListener('change', handleChange);
-      else mql.removeListener(handleChange);
-    };
+    document.documentElement.classList.remove('dark');
   }, []);
 
   // First page of events (server: approved + End Date within ~30 days; paginated)
@@ -149,11 +127,22 @@ export default function App() {
   }, [events, upcomingEvents, searchQuery]);
 
   useEffect(() => {
-    if (filteredEvents.length > 0) {
-      const first = filteredEvents[0].startDate;
-      setActiveMonth(new Date(first.getFullYear(), first.getMonth(), 1));
+    if (loading || initialListAnchorAppliedRef.current) return;
+    initialListAnchorAppliedRef.current = true;
+
+    if (searchQuery.trim()) {
+      setListScrollSyncsCalendarMonth(true);
+      return;
     }
-  }, [filteredEvents]);
+
+    const day = pickInitialListScrollDay(filteredEvents, new Date());
+    if (!day) {
+      setListScrollSyncsCalendarMonth(true);
+      return;
+    }
+
+    setScrollToDay(day);
+  }, [loading, filteredEvents, searchQuery]);
 
   const hasMore = Boolean(eventsNextOffset);
 
@@ -254,6 +243,8 @@ export default function App() {
 
   const handleScrollToDayComplete = useCallback(() => {
     setScrollToDay(null);
+    setListScrollSyncsCalendarMonth(true);
+    setScrollToDayBehavior('smooth');
   }, []);
 
   const handleCalendarDayWithEventsClick = (date: Date) => {
@@ -286,18 +277,20 @@ export default function App() {
         <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-6 pb-2 pt-2">
           <div className="mb-4 shrink-0">
             <h1 className="text-4xl font-semibold tracking-tight">
-              Central VA <span className="text-fuchsia-600">Events</span>
+              Central VA{' '}
+              <span style={{ color: SCHEDULE_PRIMARY_ACCENT }}>Events</span>
             </h1>
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-6 lg:h-full lg:min-h-0 lg:grid-cols-[300px_minmax(0,1fr)] lg:grid-rows-1">
-            <div className="flex min-h-0 flex-col justify-start lg:sticky lg:top-4">
+            <div className="flex min-h-0 flex-col justify-start gap-0 lg:sticky lg:top-4">
               <Calendar
                 events={filteredEvents}
                 displayMonth={activeMonth}
                 onDisplayMonthChange={handleCalendarMonthChange}
                 onDayWithEventsClick={handleCalendarDayWithEventsClick}
               />
+              <EmailSignup webhookUrl={SUBSCRIBE_WEBHOOK_URL} />
             </div>
 
             <div className="flex min-h-0 flex-col overflow-hidden">
@@ -310,7 +303,9 @@ export default function App() {
                 hasMore={hasMore}
                 onLoadMore={handleLoadMore}
                 onTopVisibleMonthChange={handleTopVisibleMonthChange}
+                syncVisibleMonthToParent={listScrollSyncsCalendarMonth}
                 scrollToDay={scrollToDay}
+                scrollToDayBehavior={scrollToDayBehavior}
                 onScrollToDayComplete={handleScrollToDayComplete}
               />
             </div>
