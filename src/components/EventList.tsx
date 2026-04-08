@@ -15,7 +15,9 @@ interface EventListProps {
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
   hasMore: boolean;
-  onLoadMore: () => void;
+  onLoadMore: () => void | Promise<void>;
+  /** When true, infinite scroll / button avoid duplicate fetches. */
+  loadingMore?: boolean;
   onTopVisibleMonthChange?: (month: Date) => void;
   /** When set, constrains list height (e.g. tests). When omitted, list fills the parent flex column. */
   scrollContainerHeight?: string;
@@ -52,6 +54,7 @@ export function EventList({
   onSearchQueryChange,
   hasMore,
   onLoadMore,
+  loadingMore = false,
   onTopVisibleMonthChange,
   scrollContainerHeight,
   scrollToDay = null,
@@ -100,17 +103,17 @@ export function EventList({
   }, [events]);
 
   useEffect(() => {
-    if (!hasMore || !sentinelRef.current) return;
+    if (!hasMore || loadingMore || !sentinelRef.current) return;
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
-          onLoadMore();
+          void onLoadMore();
         }
       }
     });
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, onLoadMore]);
+  }, [hasMore, loadingMore, onLoadMore]);
 
   useEffect(() => {
     if (!onTopVisibleMonthChange || groupedEvents.length === 0) return;
@@ -303,10 +306,11 @@ export function EventList({
             <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
             <button
               type="button"
-              onClick={onLoadMore}
-              className="rounded border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-muted"
+              disabled={loadingMore}
+              onClick={() => void onLoadMore()}
+              className="rounded border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
             >
-              Load more events
+              {loadingMore ? 'Loading…' : 'Load more events'}
             </button>
           </div>
         ) : null}

@@ -1,18 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Event } from '../types';
-import { addEvent, getEvents, updateEvent } from './eventsApi';
+import { addEvent, getEvents, getEventsPage, updateEvent } from './eventsApi';
 
 describe('eventsApi service contract', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('getEvents maps proxy response into Event[] with Date objects', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify([
+  it('getEventsPage maps one page and nextOffset', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          events: [
             {
               id: 'evt-1',
               title: 'Launch',
@@ -22,16 +21,66 @@ describe('eventsApi service contract', () => {
               notes: 'hello',
               location: 'Main Hall',
             },
-          ]),
-          { status: 200 },
-        ),
+          ],
+          nextOffset: 'cursor-next',
+        }),
+        { status: 200 },
       ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const page = await getEventsPage({ limit: 50 });
+    expect(page.events).toHaveLength(1);
+    expect(page.nextOffset).toBe('cursor-next');
+    expect(page.events[0].startDate).toBeInstanceOf(Date);
+    expect(page.events[0].location).toBe('Main Hall');
+    expect(fetchMock.mock.calls[0][0]).toContain('limit=50');
+  });
+
+  it('getEvents follows pages until nextOffset is null', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              events: [
+                {
+                  id: 'evt-a',
+                  title: 'A',
+                  startDate: '2026-03-20T13:00:00.000Z',
+                  endDate: '2026-03-20T14:00:00.000Z',
+                  isAllDay: false,
+                },
+              ],
+              nextOffset: 'off1',
+            }),
+            { status: 200 },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              events: [
+                {
+                  id: 'evt-b',
+                  title: 'B',
+                  startDate: '2026-03-21T13:00:00.000Z',
+                  endDate: '2026-03-21T14:00:00.000Z',
+                  isAllDay: false,
+                },
+              ],
+              nextOffset: null,
+            }),
+            { status: 200 },
+          ),
+        ),
     );
 
     const events = await getEvents();
-    expect(events).toHaveLength(1);
-    expect(events[0].startDate).toBeInstanceOf(Date);
-    expect(events[0].location).toBe('Main Hall');
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.id)).toEqual(['evt-a', 'evt-b']);
   });
 
   it('addEvent and updateEvent return Event-shaped payload', async () => {

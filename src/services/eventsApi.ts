@@ -84,10 +84,49 @@ async function parseResponse<T>(response: Response): Promise<T> {
   }
 }
 
+type EventsPageDto = {
+  events: EventDto[];
+  nextOffset: string | null;
+};
+
+function buildEventsGetUrl(params?: { limit?: number; offset?: string }): string {
+  const search = new URLSearchParams();
+  if (params?.limit != null) {
+    search.set('limit', String(params.limit));
+  }
+  if (params?.offset) {
+    search.set('offset', params.offset);
+  }
+  const q = search.toString();
+  return q ? `${EVENTS_API_PATH}?${q}` : EVENTS_API_PATH;
+}
+
+/** One page of events from GET /api/events (server applies 30-day + approved filter). */
+export async function getEventsPage(params?: {
+  limit?: number;
+  offset?: string;
+}): Promise<{ events: Event[]; nextOffset: string | null }> {
+  const response = await fetch(buildEventsGetUrl(params));
+  const payload = await parseResponse<EventsPageDto>(response);
+  if (!payload || !Array.isArray(payload.events)) {
+    throw new Error(`Invalid events page from ${EVENTS_API_PATH}.`);
+  }
+  return {
+    events: payload.events.map(mapDtoToEvent),
+    nextOffset: payload.nextOffset ?? null,
+  };
+}
+
+/** Fetches every page until exhausted (use sparingly; prefer getEventsPage for lazy UI). */
 export async function getEvents(): Promise<Event[]> {
-  const response = await fetch(EVENTS_API_PATH);
-  const payload = await parseResponse<EventDto[]>(response);
-  return payload.map(mapDtoToEvent);
+  const out: Event[] = [];
+  let offset: string | undefined;
+  do {
+    const { events, nextOffset } = await getEventsPage({ limit: 100, offset });
+    out.push(...events);
+    offset = nextOffset ?? undefined;
+  } while (offset);
+  return out;
 }
 
 export async function addEvent(event: Omit<Event, 'id'>): Promise<Event> {

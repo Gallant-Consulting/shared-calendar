@@ -1,5 +1,19 @@
 # Decision Log
 
+## 2026-04-07 - Paginated GET /api/events + 30-day End Date window
+
+### Context
+`GET /api/events` loaded the entire Events table via Airtable pagination in one handler call, and the UI only simulated “load more” by revealing slices of that array.
+
+### Decision
+- Add **`listRecordsPage`** in `api/_lib/airtable.ts` (single request + optional **`sort`**).
+- **`GET /api/events`** returns **`{ events, nextOffset }`**, accepts **`limit`** (≤100) and **`offset`**, uses **`filterByFormula`**: approved status + **`End Date`** not before **`DATEADD(TODAY(), -30, 'days')`** (see `EVENTS_LIST_FILTER_FORMULA` in `api/events.ts`). Sort **`Start Date`** ascending.
+- Client: **`getEventsPage`**, **`getEvents`** aggregates all pages; **`App`** accumulates pages on “Load more” / intersection observer with **`loadingMore`** guard; removed **`visibleCount`** slicing.
+
+### Tradeoffs
+- Search and calendar dots only see **loaded** pages until the user loads more.
+- The 30-day cutoff uses Airtable **`TODAY()`** (base timezone), not the app’s Eastern display helpers.
+
 ## 2026-04-07 - Viewport-locked layout; event list fills remaining height
 
 ### Context

@@ -1,11 +1,16 @@
 import './styles/globals.css'
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar } from './components/Calendar';
 import { EventList } from './components/EventList';
 import { EventModal } from './components/EventModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './components/ui/dialog';
 import type { Event } from './types';
-import { getEvents, addEvent as apiAddEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent } from './services/eventsApi';
+import {
+  getEventsPage,
+  addEvent as apiAddEvent,
+  updateEvent as apiUpdateEvent,
+  deleteEvent as apiDeleteEvent,
+} from './services/eventsApi';
 import { eventMatchesQuery } from './utils/eventSearch';
 import { FOOTER_LINKS } from './siteConfig';
 
@@ -62,7 +67,9 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [visibleCount, setVisibleCount] = useState(20);
+  const [eventsNextOffset, setEventsNextOffset] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreInFlight = useRef(false);
   const [activeMonth, setActiveMonth] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [scrollToDay, setScrollToDay] = useState<Date | null>(null);
 
@@ -108,15 +115,20 @@ export default function App() {
     };
   }, []);
 
-  // Fetch events from API on mount
+  // First page of events (server: approved + End Date within ~30 days; paginated)
   useEffect(() => {
     setLoading(true);
     setError(null);
-    getEvents()
-      .then(setEvents)
-      .catch(e => {
+    setEventsNextOffset(null);
+    getEventsPage()
+      .then(({ events: firstPage, nextOffset }) => {
+        setEvents(firstPage);
+        setEventsNextOffset(nextOffset);
+      })
+      .catch((e) => {
         setError(e.message || 'Failed to load events');
         setEvents([]);
+        setEventsNextOffset(null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -137,22 +149,13 @@ export default function App() {
   }, [events, upcomingEvents, searchQuery]);
 
   useEffect(() => {
-    setVisibleCount(20);
-  }, [searchQuery, events]);
-
-  useEffect(() => {
     if (filteredEvents.length > 0) {
       const first = filteredEvents[0].startDate;
       setActiveMonth(new Date(first.getFullYear(), first.getMonth(), 1));
     }
   }, [filteredEvents]);
 
-  // Must be memoized: a new array every render would retrigger EventList's scroll sync and reset the calendar month.
-  const visibleEvents = useMemo(
-    () => filteredEvents.slice(0, visibleCount),
-    [filteredEvents, visibleCount],
-  );
-  const hasMore = visibleCount < filteredEvents.length;
+  const hasMore = Boolean(eventsNextOffset);
 
   const handleSaveEvent = async (eventData: Omit<Event, 'id'>) => {
     setLoading(true);
@@ -219,9 +222,27 @@ export default function App() {
 
   const visibleFooterLinks = FOOTER_LINKS.filter((link) => !shouldHideFooterLink(link.text));
 
-  const handleLoadMore = useCallback(() => {
-    setVisibleCount((count) => Math.min(count + 20, filteredEvents.length));
-  }, [filteredEvents.length]);
+  const handleLoadMore = useCallback(async () => {
+    if (!eventsNextOffset || loadMoreInFlight.current) return;
+    loadMoreInFlight.current = true;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const { events: more, nextOffset } = await getEventsPage({ offset: eventsNextOffset });
+      setEvents((prev) => {
+        const seen = new Set(prev.map((e) => e.id));
+        const added = more.filter((e) => !seen.has(e.id));
+        return [...prev, ...added];
+      });
+      setEventsNextOffset(nextOffset);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to load more events';
+      setError(message);
+    } finally {
+      loadMoreInFlight.current = false;
+      setLoadingMore(false);
+    }
+  }, [eventsNextOffset]);
 
   const handleTopVisibleMonthChange = useCallback((month: Date) => {
     setActiveMonth(new Date(month.getFullYear(), month.getMonth(), 1));
@@ -243,7 +264,6 @@ export default function App() {
         e.startDate.getDate() === date.getDate(),
     );
     if (idx < 0) return;
-    setVisibleCount((c) => Math.max(c, idx + 1));
     setScrollToDay(new Date(date.getFullYear(), date.getMonth(), date.getDate()));
   };
 
@@ -282,8 +302,9 @@ export default function App() {
 
             <div className="flex min-h-0 flex-col overflow-hidden">
               <EventList
-                events={visibleEvents}
+                events={filteredEvents}
                 accentSourceEvents={filteredEvents}
+                loadingMore={loadingMore}
                 searchQuery={searchQuery}
                 onSearchQueryChange={setSearchQuery}
                 hasMore={hasMore}

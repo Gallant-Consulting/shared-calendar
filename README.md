@@ -36,14 +36,26 @@ The application now uses an **API proxy layer** to connect to **Airtable** secur
 **Proxy/API modules:**
 
 - `api/events.ts` — Airtable-backed events endpoint (`GET/POST/PUT/DELETE`)
-- `api/_lib/airtable.ts` — Airtable HTTP helpers + env validation
+- `api/_lib/airtable.ts` — Airtable HTTP helpers, `listRecords` (full scan), `listRecordsPage` (single page + sort)
 - `api/_lib/mappers.ts` — Airtable field mapping and normalization
 
 **Data Flow:**
 
-1. App fetches events through `eventsApi` → same-origin `/api/events`.
+1. App loads events through `getEventsPage()` → same-origin **`GET /api/events`** (paginated); “Load more” passes **`offset`** from the previous response’s **`nextOffset`**.
 2. The proxy authenticates to Airtable using `AIRTABLE_PAT` and `AIRTABLE_BASE_ID`.
-3. Events are mapped from the Airtable `Events` table and filtered to approved statuses.
+3. List queries use an Airtable **`filterByFormula`**: **approved** status (including the legacy `apporoved` typo) and **`End Date`** not before **30 days before `TODAY()`** (per the base’s timezone). Rows are sorted by **`Start Date`** ascending. Up to **`limit`** records per request (default **100**, max **100**); **`nextOffset`** is the Airtable pagination cursor or **`null`** when done.
+4. **`getEvents()`** in `eventsApi` still exists and **follows every page** until `nextOffset` is null (use for scripts/tests; the UI uses **`getEventsPage`** for lazy loading).
+
+**`GET /api/events` query parameters**
+
+| Parameter | Description |
+|-----------|-------------|
+| `limit` | Page size (1–100, default 100). |
+| `offset` | Opaque cursor from the previous response’s `nextOffset`. |
+
+**Response shape:** `{ "events": [ … ], "nextOffset": "<cursor>" \| null }` (JSON). **`POST` / `PUT` / `DELETE`** responses are unchanged (single event or `{ success: true }`).
+
+**Search / calendar:** Client-side search only matches **events already loaded**; load more pages to widen coverage. The calendar reflects the same loaded set until additional pages are fetched.
 
 **Airtable tables used by runtime:**
 

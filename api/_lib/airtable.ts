@@ -78,6 +78,41 @@ export async function listRecords(
   return all;
 }
 
+export type ListRecordsPageSort = { field: string; direction: 'asc' | 'desc' };
+
+/** Single Airtable list page (max 100 records per request). */
+export async function listRecordsPage(
+  tableName: string,
+  options: {
+    filterByFormula?: string;
+    pageSize: number;
+    offset?: string;
+    sort?: ListRecordsPageSort[];
+  },
+): Promise<{ records: AirtableRecord[]; nextOffset?: string }> {
+  const url = new URL(buildTableUrl(tableName));
+  url.searchParams.set('maxRecords', String(options.pageSize));
+  if (options.filterByFormula) {
+    url.searchParams.set('filterByFormula', options.filterByFormula);
+  }
+  if (options.offset) {
+    url.searchParams.set('offset', options.offset);
+  }
+  if (options.sort?.length) {
+    options.sort.forEach((s, i) => {
+      url.searchParams.set(`sort[${i}][field]`, s.field);
+      url.searchParams.set(`sort[${i}][direction]`, s.direction);
+    });
+  }
+
+  const response = await airtableFetch(url.toString());
+  const payload = (await response.json()) as AirtableListResponse;
+  return {
+    records: payload.records || [],
+    nextOffset: payload.offset,
+  };
+}
+
 export async function createRecord(
   tableName: string,
   fields: Record<string, unknown>,
