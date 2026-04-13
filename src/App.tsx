@@ -324,7 +324,7 @@ export default function App() {
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span>
               Powered by{' '}
-              <a href="https://goodfix.tech" className="text-blue-400 hover:text-blue-300 underline transition-colors" target="_blank" rel="noopener noreferrer">Good Fix</a>
+              <a href="https://workgallantly.com" className="text-blue-400 hover:text-blue-300 underline transition-colors" target="_blank" rel="noopener noreferrer">Gallant</a>
               &nbsp;&copy; {currentYear}
               
             </span>
