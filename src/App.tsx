@@ -277,7 +277,7 @@ export default function App() {
         <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-6 pb-2 pt-2">
           <div className="mb-4 shrink-0">
             <h1 className="text-4xl font-semibold tracking-tight">
-              Central VA{' '}
+              Greater Richmond Business{' '}
               <span style={{ color: SCHEDULE_PRIMARY_ACCENT }}>Events</span>
             </h1>
           </div>
